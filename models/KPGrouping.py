@@ -1,0 +1,20 @@
+from .py_utils import kp_group, GroupingLoss, _neg_loss, residual
+from .model_utils import make_pool_layer, make_hg_layer
+
+class Model(kp_group):
+    def __init__(self, db):
+        n = 5
+        dims = [256, 256, 384, 384, 384, 512]
+        modules = [2, 2, 2, 2, 2, 4]
+        out_dim = 10
+
+        super(Model, self).__init__(
+            n, 2, dims, modules, out_dim,
+            make_pool_layer=make_pool_layer,
+            make_hg_layer=make_hg_layer,
+            kp_layer=residual, cnv_dim=256
+        )
+
+
+loss = GroupingLoss(focal_loss=_neg_loss, lambda_=4, lambda_b=2)  
+

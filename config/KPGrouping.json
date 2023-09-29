@@ -1,0 +1,53 @@
+{
+    "system": {
+        
+        "batch_size": 2,
+        "sampling_function": "kp_detection",
+
+        "train_split": "trainchart",
+        "val_split": "valchart",
+        "test_split": "testchart",
+
+        "learning_rate": 0.000025,
+        "decay_rate": 10,
+
+        "val_iter": 50000,
+
+        "opt_algo": "adam",
+        "prefetch_size": 5,
+
+        "max_iter": 100000,
+        "stepsize": 70000,
+        "snapshot": 10000,
+
+        "chunk_sizes": [5, 7, 7, 7],
+
+        "data_dir": "",
+        "cache_dir": ""
+    },
+    
+    "db": {
+        "rand_scale_min": 0.6,
+        "rand_scale_max": 1.4,
+        "rand_scale_step": 0.1,
+        "rand_scales": null,
+
+        "rand_crop": false, 
+        "rand_color": true,
+
+        "border": 128,
+        "gaussian_bump": true,
+        "gaussian_iou": 0.3,
+
+        "input_size": [511, 511],
+        "output_sizes": [[128, 128]],
+
+        "top_k": 100,
+        "categories": 10,
+        "ae_threshold": 0.5,
+        "nms_threshold": 0.5,
+        "nms_kernel": 3,
+
+        "max_per_image": 100
+    }
+}
