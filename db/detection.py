@@ -20,7 +20,6 @@ class DETECTION(BASE):
         self._configs["ae_threshold"]    = 0.5
         self._configs["nms_kernel"]      = 3
         
-        self._configs["data_aug"]        = True
         self._configs["lighting"]        = True
 
         self._configs["border"]          = 128

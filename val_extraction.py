@@ -185,8 +185,8 @@ def parse_args():
 
     parser.add_argument("--data_dir",
                         dest="data_dir",
-                        help="Path to the directory where the data is located. Default is 'data/chart/'.",
-                        default="data/chart/",
+                        help="Path to the directory where the data is located. Default is 'data/clsdata(1031)'.",
+                        default="data/clsdata(1031)",
                         type=str)
 
     parser.add_argument('--cache_path',

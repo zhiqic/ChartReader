@@ -35,8 +35,9 @@ The Microsoft COCO APIs are also required for the functioning of the chart data 
 
 ```shell
 mkdir data
+cd data
 git clone https://github.com/cocodataset/cocoapi coco
-cd data/coco/PythonAPI
+cd coco/PythonAPI
 make
 ```
 
@@ -73,13 +74,18 @@ python train_extraction.py \
     --cache_path "data/clsdata(1031)/cache/"
 ```
 
+python train_extraction.py \
+    --cfg_file KPDetection \
+    --data_dir "data/tmp/" \
+    --cache_path "data/tmp/cache/"
+
 Then you can use the pretrained KP Detection model to train the KP grouping model, for example:
 
 ```shell
 python train_extraction.py \
     --cfg_file KPGrouping \
     --data_dir "data/clsdata(1031)/" \
-    --pretrain_model "KPDetection.pkl" \
+    --pretrain_model "KPDetection_5000.pkl" \
     --cache_path "data/clsdata(1031)/cache/" \
 ```
 
@@ -127,15 +133,27 @@ python val_extraction.py \
     --img_path <path_to_test_images> \
     --save_path <path_to_save_test_results> \
     --model_type <type_of_model_to_be_tested(KPDetection/KPGrouping)> \
-    --cache_path <path_to_model_to_be_tested>
+    --cache_path <path_to_model_to_be_tested> \
+    --data_dir <path_to_data> \
+    --iter <model_iteration>
 ```
 
 e.g.
 
 ```shell
 python val_extraction.py \
-    --img_path "extracted_data/bar/images/val" \
+    --img_path "data/clsdata(1031)/cls/images/val2019" \
     --save_path evaluation \
     --model_type KPDetection \
-    --cache_path "extracted_data/cache/"
+    --cache_path "data/clsdata(1031)/cache/" \
+    --data_dir "data/clsdata(1031)" \
+    --iter 5000 \
 ```
+
+python val_extraction.py \
+    --img_path "data/tmp/cls/images/val2019" \
+    --save_path evaluation \
+    --model_type KPDetection \
+    --cache_path "data/tmp/cache/" \
+    --data_dir "data/tmp" \
+    --iter 100 \

@@ -16,8 +16,8 @@ torch.backends.cudnn.benchmark = True
 import wandb
 import logging
 import ptvsd
-#ptvsd.enable_attach(address=('0.0.0.0', 8080))
-#ptvsd.wait_for_attach()
+ptvsd.enable_attach(address=('0.0.0.0', 5678))
+ptvsd.wait_for_attach()
 
 def train(training_db, validation_db, start_iter=0):
     learning_rate    = system_configs.learning_rate
@@ -64,11 +64,10 @@ def train(training_db, validation_db, start_iter=0):
     total_training_loss = []
     ind = 0
     error_count = 0
-    data_aug = True  # 数据增强标志
 
     for iteration in tqdm(range(start_iter + 1, max_iter + 1)):
         try:
-            training, ind = sample_data(training_db, ind, data_aug=data_aug)
+            training, ind = sample_data(training_db, ind)
             #print('Data sampling OK')
             training_loss = nnet.train(**training)
             total_training_loss.append(training_loss.item())
@@ -101,14 +100,14 @@ def train(training_db, validation_db, start_iter=0):
 
         if val_iter and validation_db.db_inds.size and iteration % val_iter == 0:
             nnet.eval_mode()
-            validation, val_ind = sample_data(validation_db, val_ind, data_aug=False)
+            validation, val_ind = sample_data(validation_db, val_ind)
             validation_loss = nnet.validate(**validation)
             wandb.log({"val_loss":validation_loss.item()})
             print(f"Validation loss at iter {iteration}: {validation_loss.item()}")
             nnet.train_mode()
 
         if iteration % snapshot == 0:
-            nnet.save_params(iter)
+            nnet.save_params(iteration)
 
         if iteration % stepsize == 0:
             learning_rate /= decay_rate

@@ -27,7 +27,7 @@ def get_center(a, b, c):
         return 2*c[0]-(a[0]+b[0]+c[0])/3., 2*c[1]-(a[1]+b[1]+c[1])/3.
 
 
-def kp_detection(db, k_ind, data_aug, debug):
+def kp_detection(db, k_ind, debug):
     data_rng   = system_configs.data_rng
     batch_size = system_configs.batch_size
 
@@ -412,6 +412,6 @@ def kp_detection(db, k_ind, data_aug, debug):
 
 # globals() 是一个内置函数，返回一个代表当前全局符号表的字典。这个符号表始终针对当前模块（对函数或方法来说，是定义它们的模块），不是调用它的模块。
 # 动态函数调用：globals()[system_configs.sampling_function] 这一部分是在从全局符号表中查找一个与 system_configs.sampling_function 字符串匹配的函数，并将其返回。
-# 函数调用：一旦找到了匹配的函数，它就会像普通函数一样被调用，并传入 db, k_ind, data_aug, debug 这四个参数。
-def sample_data(db, k_ind, data_aug=True, debug=False):
-    return globals()[system_configs.sampling_function](db, k_ind, data_aug, debug)
+# 函数调用：一旦找到了匹配的函数，它就会像普通函数一样被调用，并传入 db, k_ind, debug 参数。
+def sample_data(db, k_ind, debug=False):
+    return globals()[system_configs.sampling_function](db, k_ind, debug)

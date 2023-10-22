@@ -20,7 +20,6 @@ class BASE():
         self._eig_vec = np.zeros((3, 3), dtype=np.float32)
 
         self._configs = {}
-        self._configs["data_aug"] = True
 
         self._data_rng = None
 

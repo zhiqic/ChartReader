@@ -11,14 +11,14 @@
         "learning_rate": 0.000025,
         "decay_rate": 10,
 
-        "val_iter": 50000,
+        "val_iter": 5000,
 
         "opt_algo": "adam",
         "prefetch_size": 5,
 
         "max_iter": 100000,
         "stepsize": 70000,
-        "snapshot": 10000,
+        "snapshot": 5000,
 
         "chunk_sizes": [5, 7, 7, 7],
 
