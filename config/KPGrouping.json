@@ -27,18 +27,6 @@
     },
     
     "db": {
-        "rand_scale_min": 0.6,
-        "rand_scale_max": 1.4,
-        "rand_scale_step": 0.1,
-        "rand_scales": null,
-
-        "rand_crop": false, 
-        "rand_color": true,
-
-        "border": 128,
-        "gaussian_bump": true,
-        "gaussian_iou": 0.3,
-
         "input_size": [511, 511],
         "output_sizes": [[128, 128]],
 

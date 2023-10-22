@@ -4,8 +4,7 @@ import torch
 import os
 import math
 from config import system_configs
-from img_utils import color_jittering_, lighting_
-from .sampling_utils import draw_gaussian, gaussian_radius, _full_image_crop, random_crop, _resize_image, _clip_detections
+from .sampling_utils import _full_image_crop, _resize_image, _clip_detections
 
 def bad_p(x, y, output_size):
     # 检查坐标是否位于输出大小的有效范围之外
@@ -28,27 +27,14 @@ def get_center(a, b, c):
 
 
 def kp_detection(db, k_ind, debug):
-    data_rng   = system_configs.data_rng
+    #data_rng   = system_configs.data_rng
     batch_size = system_configs.batch_size
 
     categories   = 10 
     input_size   = db.configs["input_size"]
     output_size  = db.configs["output_sizes"][0]
 
-    border        = db.configs["border"]
-    lighting      = db.configs["lighting"]
-    rand_crop     = db.configs["rand_crop"]
-    rand_color    = db.configs["rand_color"]
-    rand_scales   = db.configs["rand_scales"]
-    gaussian_bump = db.configs["gaussian_bump"]
-    gaussian_iou  = db.configs["gaussian_iou"]
-    gaussian_rad  = db.configs["gaussian_radius"]
-    
-    # if "Pie" or "Bar"
-        # max_tag_len = 128
-    # elif "Line"
     max_tag_len = 256
-    max_group_len = 16
      # allocating memory
     images          = np.zeros((batch_size, 3, input_size[0], input_size[1]), dtype=np.float32)
     # 分配两个张量，用于存储关键点和中心点的热图
@@ -70,7 +56,6 @@ def kp_detection(db, k_ind, debug):
     tag_lens_cens   = np.zeros((batch_size, ), dtype=np.int32)
     # 分配一个张量，用于存储分组目标
     group_target    = np.zeros((batch_size, max_tag_len + 1, max_tag_len + 1), dtype=np.int64)
-    
         
     db_size = db.db_inds.size
     # 在一个批次中选择一个有效的数据点（或多个数据点）。它首先会随机洗牌数据库（如果满足条件），然后使用 while 循环来找到一个有效的数据点
@@ -90,10 +75,8 @@ def kp_detection(db, k_ind, debug):
                 detections = list(detections)
                 categories = list(categories)
                 if(len(categories)):
-                        image = cv2.imread(image_file)
-                        flag = True
+                    flag = True
         image = cv2.imread(image_file)
-        ori_size = image.shape
             #print(temp)
         #print(f"k_ind: {k_ind}")
         (detections, categories) = db.detections(db_ind)
@@ -103,27 +86,24 @@ def kp_detection(db, k_ind, debug):
         #print(f"Length of detection: {len(detections)}")
         #print(f"Categories: {categories}")
         for i in range(len(detections)):
+            if(categories[i] == 3):
                 detection = detections[i]
-                #print(f"Category: {int(categories[i])}")
-                if(categories[i] == 3):
-                    if len(detection) < 5:
-                        print("Insufficient elements in the detection list.")
-                        print(len(detection))
-                        print(image_file)
-                        continue
-                    xce, yce = get_center((detection[0], detection[1]), (detection[2], detection[3]), (detection[4], detection[5]))
-                    detections[i] = detection[:6] + [xce, yce] + [detection[-1]]
-        if(categories[0] == 2):
-            detections = detections[0:max_group_len]
-            categories = categories[0:max_group_len]
+                if len(detection) < 5:
+                    print("Insufficient elements in the detection list.")
+                    print(len(detection))
+                    print(image_file)
+                    continue
+                xce, yce = get_center((detection[0], detection[1]), (detection[2], detection[3]), (detection[4], detection[5]))
+                detections[i] = detection[:6] + [xce, yce] + [detection[-1]]
+        #if(categories[0] == 2):
+            #detections = detections[0:max_group_len]
+            #categories = categories[0:max_group_len]
         # cropping an image randomly
-        if not debug and rand_crop:
-            image, detections, scale = random_crop(image, detections, rand_scales, input_size, border=border)
-        else:
-            image, detections = _full_image_crop(image, detections)
-            scale = 1
+        image, detections = _full_image_crop(image, detections)
+        #cv2.imwrite('cropped.png', image)
         #print(f"Cropped detections: {detections}")
         image, detections = _resize_image(image, detections, input_size)
+        #cv2.imwrite('resized.png', image)
         #print(f"Resized detections: {detections}")
         detections = _clip_detections(image, detections)
         width_ratio  = output_size[1] / input_size[1]
@@ -132,10 +112,6 @@ def kp_detection(db, k_ind, debug):
         #print(f"Clipped detections: {detections}")
         if not debug:
             image = image.astype(np.float32) / 255.
-            if rand_color:
-                color_jittering_(data_rng, image)
-                if lighting:
-                    lighting_(data_rng, image, 0.1, db.eig_val, db.eig_vec)
             #normalize_(image, db.mean, db.std)
         images[b_ind] = image.transpose((2, 0, 1))
         for ind, (detection, category) in enumerate(zip(detections, categories)):
@@ -146,8 +122,8 @@ def kp_detection(db, k_ind, debug):
                 for k in range(int(len(detection) / 2)):
                     #print(f"k = {k}")
                     if not bad_p(detection[2*k], detection[2*k+1], input_size):
-                        tmp.append(detection[2*k])
-                        tmp.append(detection[2*k+1])
+                        tmp.append(detection[2*k].copy())
+                        tmp.append(detection[2*k+1].copy())
                 detection = np.array(tmp)
 
                 # get center
@@ -162,43 +138,26 @@ def kp_detection(db, k_ind, debug):
                 fyce = (yce * height_ratio)
                 xce = int(fxce)
                 yce = int(fyce)
-                xce = min(xce, key_heatmaps.shape[3] - 1)
-                yce = min(yce, key_heatmaps.shape[2] - 1)
+                #xce = min(xce, key_heatmaps.shape[3] - 1)
+                #yce = min(yce, key_heatmaps.shape[2] - 1)
                 # get keypoints
                 fdetection = detection.copy()
                 fdetection[0:len(fdetection):2] = detection[0:len(detection):2] * width_ratio
                 fdetection[1:len(fdetection):2] = detection[1:len(detection):2] * height_ratio
                 detection = fdetection.astype(np.int32)
 
-                if gaussian_bump:
-                    width = ori_size[1] / 50 / 4 / scale
-                    height = ori_size[0] / 50 / 4 / scale
-
-                    if gaussian_rad == -1:
-                        radius = gaussian_radius((height, width), gaussian_iou)
-                        radius = max(0, int(radius))
-                    else:
-                        radius = gaussian_rad
-
-                    for k in range(int(len(detection) / 2)):
-                        if not bad_p(detection[2*k], detection[2*k+1], output_size):
-                            draw_gaussian(key_heatmaps[b_ind, int(category)], [detection[2 * k], detection[2 * k + 1]], radius)
-                    if not bad_p(xce, yce, output_size):
-                        draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
-
-                else:
-                    for k in range(int(len(detection) / 2)):
-                        if not bad_p(detection[2*k], detection[2*k+1], output_size):
-                            #print(f"k: {k}")
-                            #print(f"{detection[2*k + 1]}")
-                            #print(f"{detection[2*k]}")
-                            key_heatmaps[b_ind, int(category), min(detection[2 * k + 1], key_heatmaps.shape[2] - 1), min(detection[2 * k], key_heatmaps.shape[3] - 1)] = 1
-                            center_heatmaps[b_ind, int(category), yce, xce] = 1
+                for k in range(int(len(detection) / 2)):
+                    if not bad_p(detection[2*k], detection[2*k+1], output_size):
+                        #print(f"k: {k}")
+                        #print(f"{detection[2*k + 1]}")
+                        #print(f"{detection[2*k]}")
+                        key_heatmaps[b_ind, int(category), detection[2 * k + 1],detection[2 * k]] = 1
+                        center_heatmaps[b_ind, int(category), yce, xce] = 1
 
                 for k in range(int(len(detection) / 2)):
                     if not bad_p(detection[2*k], detection[2*k+1], output_size):
                         #print(f"tag_lens_keys[{b_ind}]: {tag_lens_keys[b_ind]}")
-                        if tag_lens_keys[b_ind] >= max_tag_len - 3:
+                        if tag_lens_keys[b_ind] >= max_tag_len - 1:
                             print("Too many targets, skip!")
                             print(tag_lens_keys[b_ind])
                             print(image_file)
@@ -232,10 +191,6 @@ def kp_detection(db, k_ind, debug):
                 xk2, yk2 = detection[2], detection[3] # arc point 2
                 xk3, yk3 = detection[4], detection[5] # center point
                 xce, yce = detection[6], detection[7] # center of pie
-                # compute the center of mass
-                # xce, yce = get_center((xk1, yk1), (xk2, yk2), (xk3, yk3))
-                # xce, yce = np.clip(xce, 0, output_size[1] - 1), np.clip(yce, 0, output_size[0] - 1)
-
                 fxk1 = (xk1 * width_ratio)
                 fyk1 = (yk1 * height_ratio)
                 fxk2 = (xk2 * width_ratio)
@@ -261,26 +216,10 @@ def kp_detection(db, k_ind, debug):
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
 
-                if gaussian_bump:
-                    width = math.sqrt(math.pow(xk3-xk1, 2)+math.pow(yk3-yk1, 2))
-                    height = math.sqrt(math.pow(xk3-xk2, 2)+math.pow(yk3-yk2, 2))
-
-                    if gaussian_rad == -1:
-                        radius = gaussian_radius((height, width), gaussian_iou)
-                        radius = max(0, int(radius))
-                    else:
-                        radius = gaussian_rad
-
-                    draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
-                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk1, yk1], radius)
-                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk2, yk2], radius)
-                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk3, yk3], radius)
-
-                else:
-                    center_heatmaps[b_ind, int(category), yce, xce] = 1
-                    key_heatmaps[b_ind, int(category), yk1, xk1] = 1
-                    key_heatmaps[b_ind, int(category), yk2, xk2] = 1
-                    key_heatmaps[b_ind, int(category), yk3, xk3] = 1
+                center_heatmaps[b_ind, int(category), yce, xce] = 1
+                key_heatmaps[b_ind, int(category), yk1, xk1] = 1
+                key_heatmaps[b_ind, int(category), yk2, xk2] = 1
+                key_heatmaps[b_ind, int(category), yk3, xk3] = 1
 
                 key_regrs[b_ind, tag_lens_keys[b_ind], :] = [fxk1 - xk1, fyk1 - yk1]
                 key_tags[b_ind, tag_lens_keys[b_ind]] = yk1 * output_size[1] + xk1
@@ -297,8 +236,6 @@ def kp_detection(db, k_ind, debug):
                 center_regrs[b_ind, tag_lens_cens[b_ind], :] = [fxce - xce, fyce - yce]
                 center_tags[b_ind, tag_lens_cens[b_ind]] = yce * output_size[1] + xce
                 tag_lens_cens[b_ind] += 1
-
-
 
                 if tag_lens_keys[b_ind] >= max_tag_len-3:
                     #print("Too many targets, skip!")
@@ -334,30 +271,9 @@ def kp_detection(db, k_ind, debug):
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
                 # 如果使用高斯 bump，则通过调用 draw_gaussian 函数来绘制中心热图和关键热图。否则，直接在热图上设置值。
-                if gaussian_bump:	
-                    width  = detection[2] - detection[0]	
-                    height = detection[3] - detection[1]	
-
-                    width  = math.ceil(width * width_ratio)	
-                    height = math.ceil(height * height_ratio)	
-
-                    if gaussian_rad == -1:	
-                        radius = gaussian_radius((height, width), gaussian_iou)	
-                        radius = max(0, int(radius))	
-                    else:	
-                        radius = gaussian_rad	
-
-                    #draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)	
-                    if 0 <= b_ind < batch_size and 0 <= int(category) < 10:
-                        draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
-                    else:
-                        print(f"Invalid indices: b_ind={b_ind}, category={int(category)}")
-                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk1, yk1], radius)	
-                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk2, yk2], radius)	
-                else:	
-                    center_heatmaps[b_ind, int(category), yce, xce] = 1	
-                    key_heatmaps[b_ind, int(category), yk1, xk1] = 1	
-                    key_heatmaps[b_ind, int(category), yk2, xk2] = 1	
+                center_heatmaps[b_ind, int(category), yce, xce] = 1	
+                key_heatmaps[b_ind, int(category), yk1, xk1] = 1	
+                key_heatmaps[b_ind, int(category), yk2, xk2] = 1	
                 # 为回归任务计算关键点和中心点的偏移。
                 tag_ind = tag_lens_keys[b_ind]	
                 #print(f"b_ind: {b_ind}")
@@ -376,7 +292,7 @@ def kp_detection(db, k_ind, debug):
                 group_target[b_ind, cens_tag_len, keys_tag_len: keys_tag_len + 2] = 1	
                 # 更新标签长度，并检查是否超出最大长度。
                 tag_lens_keys[b_ind] += 2	
-                if tag_lens_keys[b_ind] >= max_tag_len-3:	
+                if tag_lens_keys[b_ind] >= max_tag_len-2:	
                     break	
 
                 # 生成掩码，设置关键掩码和中心掩码，并记录中心标签长度。

@@ -15,15 +15,6 @@ def normalize_(image, mean, std):
     image -= mean
     image /= std
 
-#改变图像的光照。
-# data_rng: 数据范围或随机生成器。
-# image: 要修改的图像。
-# alphastd: 控制光照变化量的标准偏差。
-# eigval, eigvec: 特征值和特征向量，用于计算光照变化。
-def lighting_(data_rng, image, alphastd, eigval, eigvec):
-    alpha = data_rng.normal(scale=alphastd, size=(3, ))
-    image += np.dot(eigvec, eigval * alpha)
-
 #将两个图像按比例混合。
 # alpha: 混合比例。
 # image1, image2: 要混合的图像。
@@ -49,17 +40,7 @@ def brightness_(data_rng, image, gs, gs_mean, var):
 def contrast_(data_rng, image, gs, gs_mean, var):
     alpha = 1. + data_rng.uniform(low=-var, high=var)
     blend_(alpha, image, gs_mean)
-
-# 对图像进行颜色抖动，包括亮度、对比度和饱和度的随机变化。
-def color_jittering_(data_rng, image):
-    functions = [brightness_, contrast_, saturation_]
-    random.shuffle(functions)
-
-    gs = grayscale(image)
-    gs_mean = gs.mean()
-    for f in functions:
-        f(data_rng, image, gs, gs_mean, 0.4)
-
+    
 def crop_image(image, center, size):
     cty, ctx            = center
     height, width       = size

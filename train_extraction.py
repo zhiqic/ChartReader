@@ -16,8 +16,8 @@ torch.backends.cudnn.benchmark = True
 import wandb
 import logging
 import ptvsd
-ptvsd.enable_attach(address=('0.0.0.0', 5678))
-ptvsd.wait_for_attach()
+#ptvsd.enable_attach(address=('0.0.0.0', 5678))
+#ptvsd.wait_for_attach()
 
 def train(training_db, validation_db, start_iter=0):
     learning_rate    = system_configs.learning_rate
