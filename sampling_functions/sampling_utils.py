@@ -62,16 +62,3 @@ def _full_image_crop(image, detections):
             new_sublist[i] += border[0]
         cropped_detections.append(new_sublist)
     return image, cropped_detections
-
-# 计算给定尺寸内的有效边界。它确保边界不会太接近尺寸的一半，否则可能会导致某些计算或绘制问题。
-# border: 初始边界值。
-# size: 边界所在的尺寸（例如宽度或高度）。
-def _get_border(border, size):
-    # 初始化一个变量 i，该变量用于增加边界的分母。
-    i = 1
-    # 循环条件检查边界是否太接近尺寸的一半。如果边界除以 i 后接近或超过尺寸的一半，循环将继续。
-    while size - border // i <= border // i:
-        # 在每次迭代中，将 i 乘以2。这会逐渐增加边界的分母，从而减小边界。
-        i *= 2
-    # 返回计算出的有效边界。 
-    return border // i

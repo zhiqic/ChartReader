@@ -30,7 +30,7 @@ def kp_detection(db, k_ind, debug):
     #data_rng   = system_configs.data_rng
     batch_size = system_configs.batch_size
 
-    categories   = 10 
+    categories   = db.configs["categories"]
     input_size   = db.configs["input_size"]
     output_size  = db.configs["output_sizes"][0]
 

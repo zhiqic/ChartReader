@@ -108,7 +108,9 @@ class NetworkFactory():
         with torch.no_grad():
             if torch.cuda.is_available():
                 # non_blocking=True: 这是一个优化，允许其他操作和数据迁移同时进行。
+                # for x in xs: 这个循环遍历所有输入数据（通常是一个批次的数据），并将它们移动到 GPU。
                 xs = [x.cuda(non_blocking=True, device=self.cuda_id) for x in xs]
+            # 调用模型的前向传播方法，并传入输入数据和任何其他关键字参数。结果（模型的输出）将被返回。
             return self.model(*xs, **kwargs)
         
     # 学习率是一个正数，用于控制模型参数在训练过程中的更新幅度。在梯度下降优化算法中，学习率与梯度的乘积确定了每次迭代中参数的更新量。

@@ -5,7 +5,7 @@ class DETECTION(BASE):
     def __init__(self, db_config):
         super().__init__()
 
-        self._configs["categories"]      = 10
+        self._configs["categories"]      = 8
         self._configs["input_size"]      = [511]
         self._configs["output_sizes"]    = [[128, 128]]
 

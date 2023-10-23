@@ -8,7 +8,6 @@ class Config:
         self._configs["sampling_function"] = "kp_detection"
 
         # Training Config
-        self._configs["display"]           = 10
         self._configs["snapshot"]          = 5000
         self._configs["stepsize"]          = 450000
         self._configs["learning_rate"]     = 0.00025
@@ -17,10 +16,6 @@ class Config:
         self._configs["val_iter"]          = 100
         self._configs["batch_size"]        = 1
         self._configs["snapshot_name"]     = None
-        self._configs["prefetch_size"]     = 10
-        self._configs["weight_decay"]      = False
-        self._configs["weight_decay_rate"] = 1e-5
-        self._configs["weight_decay_type"] = "l2"
         self._configs["pretrain"]          = None
         self._configs["opt_algo"]          = "adam"
         self._configs["chunk_sizes"]       = None
@@ -37,7 +32,6 @@ class Config:
 
         # Rng
         self._configs["data_rng"] = np.random.RandomState(123)
-        self._configs["nnet_rng"] = np.random.RandomState(317)
 
     @property
     def chunk_sizes(self):
@@ -68,32 +62,12 @@ class Config:
         return self._configs["data_rng"]
 
     @property
-    def nnet_rng(self):
-        return self._configs["nnet_rng"]
-
-    @property
     def opt_algo(self):
         return self._configs["opt_algo"]
 
     @property
-    def weight_decay_type(self):
-        return self._configs["weight_decay_type"]
-
-    @property
-    def prefetch_size(self):
-        return self._configs["prefetch_size"]
-
-    @property
     def pretrain(self):
         return self._configs["pretrain"]
-
-    @property
-    def weight_decay_rate(self):
-        return self._configs["weight_decay_rate"]
-
-    @property
-    def weight_decay(self):
-        return self._configs["weight_decay"]
 
     @property
     def dataset(self):
@@ -106,10 +80,8 @@ class Config:
     @property
     def snapshot_dir(self):
         snapshot_dir = os.path.join(self.cache_dir, "nnet", self.snapshot_name)
-
         if not os.path.exists(snapshot_dir):
             os.makedirs(snapshot_dir)
-
         return snapshot_dir
 
     @property
@@ -144,10 +116,6 @@ class Config:
     @property
     def snapshot(self):
         return self._configs["snapshot"]
-
-    @property
-    def display(self):
-        return self._configs["display"]
 
     @property
     def val_iter(self):

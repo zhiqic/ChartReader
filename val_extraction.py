@@ -79,12 +79,12 @@ def get_groups(keys, cens, group_scores):
     # p[0] > thres: 这是过滤条件，其中 p 是 keys[1] 中的一个元素（例如一个坐标点或分数），p[0] 是该元素的第一个值。只有当此值大于预定义阈值 thres 时，该元素才会被包括在新列表中。
     keys_trim = [p for p in keys[1] if p[0] > thres]
     cens_trim = [p for p in cens[1] if p[0] > thres]
+    group_scores = group_scores[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
     groups = []
     group_thres = 0.5
     # 初始化组列表和组阈值。
     if img_type == "Line":
         if len(cens_trim) == 0 or len(keys_trim) < 2: return []
-        group_scores = group_scores[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
         # 遍历中心点，并根据分数将关键点组织成组。
         for i in range(len(cens_trim)):
             group = []
@@ -108,12 +108,10 @@ def get_groups(keys, cens, group_scores):
         # 截取 group_scores 矩阵的一部分，可能与集中度和关键点有关。
         # 行索引：[:len(cens_trim)] - 这部分选择了矩阵的前 len(cens_trim) 行，其中 cens_trim 可能表示集中点或中心点的一个子集。
         # 列索引：[len(cens_trim) : len(keys_trim) + len(cens_trim)] - 这部分选择了从 len(cens_trim) 到 len(keys_trim) + len(cens_trim) 的列，其中 keys_trim 可能表示关键点的一个子集。
-        group_scores = group_scores[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
         # 使用 PyTorch 的 topk 函数从 group_scores 中选择前2个最大值，并获取它们的值和索引。
         vals, inds = torch.topk(group_scores, 2)
     elif img_type == "Pie":
         if len(cens_trim) == 0 or len(keys_trim) < 3: return []
-        group_scores = group_scores[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
         vals, inds = torch.topk(group_scores, 3)
         group_thres = 0.1
         
@@ -142,10 +140,8 @@ def test(image_path, model_type):
             # 从 results 中提取关键点（keys）和中心点（centers）。
             keys, centers = results[0], results[1]
             thres = 0.
-            # 从 results 中提取关键点（keys）和中心点（centers）。
             keys = {k: [p for p in v.tolist() if p[0]>thres] for k,v in keys.items()} 
             centers = {k: [p for p in v.tolist() if p[0]>thres] for k,v in centers.items()}
-            
             return (keys, centers)
         if model_type == 'KPGrouping':
             keys, centers, group_scores = results

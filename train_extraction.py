@@ -91,7 +91,6 @@ def train(training_db, validation_db, start_iter=0):
         training_loss = nnet.train(**training)
         total_training_loss.append(training_loss.item())
 
-        # if display and iter % display == 0:
         if iteration % 500 == 0:
             avg_training_loss = sum(total_training_loss) / len(total_training_loss)
             print(f"Training loss at iter {iteration}: {avg_training_loss}")

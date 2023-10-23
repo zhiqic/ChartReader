@@ -76,6 +76,11 @@ python train_extraction.py \
 
 python train_extraction.py \
     --cfg_file KPDetection \
+    --data_dir "data/clsdata(1031)/" \
+    --cache_path "data/clsdata(1031)/cache/"
+
+python train_extraction.py \
+    --cfg_file KPDetection \
     --data_dir "data/tmp/" \
     --cache_path "data/tmp/cache/"
 
@@ -147,13 +152,21 @@ python val_extraction.py \
     --model_type KPDetection \
     --cache_path "data/clsdata(1031)/cache/" \
     --data_dir "data/clsdata(1031)" \
-    --iter 5000 \
+    --iter 15000 \
 ```
 
 python val_extraction.py \
     --img_path "data/tmp/cls/images/val2019" \
-    --save_path evaluation \
+    --save_path "evaluation/tmp" \
     --model_type KPDetection \
-    --cache_path "data/tmp/cache/" \
+    --cache_path "data/clsdata(1031)/cache/" \
     --data_dir "data/tmp" \
-    --iter 100 \
+    --iter 15000 \
+
+python val_extraction.py \
+    --img_path "data/clsdata(1031)/cls/images/val2019" \
+    --save_path evaluation \
+    --model_type KPGrouping \
+    --cache_path "data/clsdata(1031)/cache/" \
+    --data_dir "data/clsdata(1031)" \
+    --iter 2500 \

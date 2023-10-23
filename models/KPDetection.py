@@ -6,7 +6,7 @@ class Model(kp_detection):
         n = 5
         dims = [256, 256, 384, 384, 384, 512]
         modules = [2, 2, 2, 2, 2, 4]
-        out_dim = 10
+        out_dim = 8
 
         super(Model, self).__init__(
             n, 2, dims, modules, out_dim,

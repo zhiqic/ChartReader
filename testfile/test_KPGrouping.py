@@ -85,11 +85,11 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
 
     top_points_tl = {}
     top_points_br = {}
-    for j in range(categories):
+    for j in range(1, categories):
         keep_inds_p = (classes_p_tl == j)
-        top_points_tl[j + 1] = detections_point_tl[keep_inds_p].astype(np.float32)
+        top_points_tl[j] = detections_point_tl[keep_inds_p].astype(np.float32)
         keep_inds_p = (classes_p_br == j)
-        top_points_br[j + 1] = detections_point_br[keep_inds_p].astype(np.float32)
+        top_points_br[j] = detections_point_br[keep_inds_p].astype(np.float32)
     # 使用NumPy的hstack函数，这些分数数组被水平地堆叠在一起。也就是说，所有不同类别的顶部关键点的分数都被合并成一个一维数组。
     # 例如有三个NumPy数组：array1、array2 和 array3，它们分别是 [1,2,3]、[4,5,6] 和 [7,8,9]。当我们使用 np.hstack([array1, array2, array3])，这些数组会被水平堆叠（横向拼接）成一个新的数组：[1,2,3,4,5,6,7,8,9]。
     scores = np.hstack([

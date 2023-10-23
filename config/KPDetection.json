@@ -14,7 +14,6 @@
         "val_iter": 500,
 
         "opt_algo": "adam",
-        "prefetch_size": 5,
 
         "max_iter": 50000,
         "stepsize": 20000,
@@ -31,7 +30,7 @@
         "output_sizes": [[128, 128]],
 
         "top_k": 100,
-        "categories": 10,
+        "categories": 8,
         "ae_threshold": 0.5,
         "nms_threshold": 0.5,
 
