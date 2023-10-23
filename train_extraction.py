@@ -155,11 +155,11 @@ if __name__ == "__main__":
     #)
     args = parse_args()
     wandb.init(
-        project = "ChartReader-Extraction-Part",
-        name = "chartreader-extraction-1",
-        group = "chartreader-extraction",
+        project = "ChartLLM-Extraction-Part",
+        name = "chartllm-extraction-1",
+        group = "chartllm-extraction",
         notes = "Test KP Detection",
-        tags = ["ChartReader", "baseline", "KP Detection"],
+        tags = ["ChartLLM", "KP Detection"],
         config = args
     )
     print(f"Training args: {args}")

@@ -5,13 +5,13 @@ from config import system_configs
 from img_utils import crop_image
 from .test_utils import _rescale_points
 
-def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
+def kp_decode(nnet, images, K, kernel=3):
     # 所有的操作都不会进行梯度计算，从而节省内存和计算时间。
     with torch.no_grad():
             # detections_tl_detections_br: 是一个包含两个部分（detections_tl 和 detections_br）的元组或列表。
             # time_backbone: 是执行backbone网络所需的时间。
             # time_psn: 是执行某个不明确的PSN（可能是某种后处理或网络结构）所需的时间。
-            detections_tl_detections_br, time_backbone, time_psn = nnet.test([images], ae_threshold=ae_threshold, K=K, kernel=kernel)
+            detections_tl_detections_br, time_backbone, time_psn = nnet.test([images], K=K, kernel=kernel)
             detections_tl = detections_tl_detections_br[0]
             detections_br = detections_tl_detections_br[1]
             # 重新排列数组的维度。原始数组的第三维（索引为2）现在变成了新数组的第一维，原始数组的第二维（索引为1）现在变成了新数组的第二维，原始数组的第一维（索引为0）现在变成了新数组的第三维。
@@ -21,7 +21,6 @@ def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
 
 def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0):
     K = db.configs["top_k"]
-    ae_threshold = db.configs["ae_threshold"]
     nms_kernel = db.configs["nms_kernel"]
 
     categories = db.configs["categories"]
@@ -62,10 +61,9 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
         images = torch.from_numpy(images)
 
     # 使用 decode_func 函数进行解码以获取检测结果 
-    dets_tl, dets_br = decode_func(nnet, images, K, ae_threshold=ae_threshold, kernel=nms_kernel)
+    dets_tl, dets_br = decode_func(nnet, images, K, kernel=nms_kernel)
 
     # 对检测到的点进行重新缩放
-    offset = (offset + 1) * 100
     _rescale_points(dets_tl, ratios, borders, sizes)
     _rescale_points(dets_br, ratios, borders, sizes)
     # 合并所有检测点

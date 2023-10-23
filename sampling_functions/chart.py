@@ -26,8 +26,7 @@ def get_center(a, b, c):
         return 2*c[0]-(a[0]+b[0]+c[0])/3., 2*c[1]-(a[1]+b[1]+c[1])/3.
 
 
-def kp_detection(db, k_ind, debug):
-    #data_rng   = system_configs.data_rng
+def kp_sampling(db, k_ind, debug):
     batch_size = system_configs.batch_size
 
     categories   = db.configs["categories"]

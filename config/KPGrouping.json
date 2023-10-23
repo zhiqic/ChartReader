@@ -2,7 +2,7 @@
     "system": {
         
         "batch_size": 2,
-        "sampling_function": "kp_detection",
+        "sampling_function": "kp_sampling",
 
         "train_split": "trainchart",
         "val_split": "valchart",
@@ -19,8 +19,6 @@
         "stepsize": 70000,
         "snapshot": 2500,
 
-        "chunk_sizes": [5, 7, 7, 7],
-
         "data_dir": "",
         "cache_dir": ""
     },
@@ -31,7 +29,6 @@
 
         "top_k": 100,
         "categories": 8,
-        "ae_threshold": 0.5,
         "nms_threshold": 0.5,
         "nms_kernel": 3,
 

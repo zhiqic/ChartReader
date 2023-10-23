@@ -12,7 +12,6 @@ class DETECTION(BASE):
         self._configs["nms_threshold"]   = 0.5
         self._configs["max_per_image"]   = 100
         self._configs["top_k"]           = 100
-        self._configs["ae_threshold"]    = 0.5
         self._configs["nms_kernel"]      = 3
         
         self.update_config(db_config)

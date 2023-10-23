@@ -5,7 +5,7 @@ class Config:
     def __init__(self):
         self._configs = {}
         self._configs["dataset"] = None
-        self._configs["sampling_function"] = "kp_detection"
+        self._configs["sampling_function"] = "kp_sampling"
 
         # Training Config
         self._configs["snapshot"]          = 5000
@@ -18,7 +18,6 @@ class Config:
         self._configs["snapshot_name"]     = None
         self._configs["pretrain"]          = None
         self._configs["opt_algo"]          = "adam"
-        self._configs["chunk_sizes"]       = None
 
         # Directories
         self._configs["data_dir"]   = "./data"
@@ -32,10 +31,6 @@ class Config:
 
         # Rng
         self._configs["data_rng"] = np.random.RandomState(123)
-
-    @property
-    def chunk_sizes(self):
-        return self._configs["chunk_sizes"]
 
     @property
     def train_split(self):

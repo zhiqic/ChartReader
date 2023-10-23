@@ -8,11 +8,10 @@ from .test_utils import _rescale_points
 # nnet: 神经网络模型，用于执行测试。
 # images: 输入图像，可以是一批图像。
 # K: 一个整数，定义了要检测的最大关键点数量。
-# ae_threshold: 自编码阈值，用于控制关键点之间的关联程度。
 # kernel: 核大小，通常用于卷积操作。
-def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
+def kp_decode(nnet, images, K, kernel=3):
     with torch.no_grad():
-        detections_tl, detections_br, group_scores = nnet.test([images], ae_threshold=ae_threshold, K=K, kernel=kernel)
+        detections_tl, detections_br, group_scores = nnet.test([images], K=K, kernel=kernel)
         detections_tl = detections_tl.data.cpu().numpy().transpose((2, 1, 0))
         detections_br = detections_br.data.cpu().numpy().transpose((2, 1, 0))
         return detections_tl, detections_br, group_scores
@@ -20,7 +19,6 @@ def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
 def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0):
     # 参数初始化
     K = db.configs["top_k"]
-    ae_threshold = db.configs["ae_threshold"]
     nms_kernel = db.configs["nms_kernel"]
 
     categories = db.configs["categories"]
@@ -62,8 +60,7 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
         images = torch.from_numpy(images)
         
     # 调用解码函数来获取检测，并重新缩放点以匹配原始图像尺寸。
-    dets_tl, dets_br, group_scores = decode_func(nnet, images, K, ae_threshold=ae_threshold, kernel=nms_kernel)
-    offset = (offset + 1) * 100
+    dets_tl, dets_br, group_scores = decode_func(nnet, images, K, kernel=nms_kernel)
     _rescale_points(dets_tl, ratios, borders, sizes)
     _rescale_points(dets_br, ratios, borders, sizes)
     detections_point_tl.append(dets_tl)

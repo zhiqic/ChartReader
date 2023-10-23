@@ -74,16 +74,6 @@ python train_extraction.py \
     --cache_path "data/clsdata(1031)/cache/"
 ```
 
-python train_extraction.py \
-    --cfg_file KPDetection \
-    --data_dir "data/clsdata(1031)/" \
-    --cache_path "data/clsdata(1031)/cache/"
-
-python train_extraction.py \
-    --cfg_file KPDetection \
-    --data_dir "data/tmp/" \
-    --cache_path "data/tmp/cache/"
-
 Then you can use the pretrained KP Detection model to train the KP grouping model, for example:
 
 ```shell
@@ -91,7 +81,7 @@ python train_extraction.py \
     --cfg_file KPGrouping \
     --data_dir "data/clsdata(1031)/" \
     --pretrain_model "KPDetection_5000.pkl" \
-    --cache_path "data/clsdata(1031)/cache/" \
+    --cache_path "data/clsdata(1031)/cache/"
 ```
 
 ### Chart Question Answering Part
@@ -152,21 +142,5 @@ python val_extraction.py \
     --model_type KPDetection \
     --cache_path "data/clsdata(1031)/cache/" \
     --data_dir "data/clsdata(1031)" \
-    --iter 15000 \
+    --iter 15000
 ```
-
-python val_extraction.py \
-    --img_path "data/tmp/cls/images/val2019" \
-    --save_path "evaluation/tmp" \
-    --model_type KPDetection \
-    --cache_path "data/clsdata(1031)/cache/" \
-    --data_dir "data/tmp" \
-    --iter 15000 \
-
-python val_extraction.py \
-    --img_path "data/clsdata(1031)/cls/images/val2019" \
-    --save_path evaluation \
-    --model_type KPGrouping \
-    --cache_path "data/clsdata(1031)/cache/" \
-    --data_dir "data/clsdata(1031)" \
-    --iter 2500 \

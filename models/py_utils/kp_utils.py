@@ -155,7 +155,7 @@ def _topk(scores, K=20):
     topk_xs   = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
-def _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, ae_threshold=1, num_dets=1000, option="pure"):
+def _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, option="pure"):
     batch, cat, height, width = tl_heat.size()
     
     # 通过Sigmoid激活函数将热图的值限制在0到1之间。
@@ -200,17 +200,17 @@ def _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, a
     
 def _decode_pure(
         tl_heat, br_heat, tl_regr, br_regr,
-        K=100, kernel=1, ae_threshold=1, num_dets=1000
+        K=100, kernel=1
 ):
     return _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr,
-        K, kernel, ae_threshold, num_dets, "pure")
+        K, kernel, "pure")
 
 def _decode_group(
         tl_heat, br_heat, tl_regr, br_regr,
-        K=100, kernel=1, ae_threshold=1, num_dets=1000
+        K=100, kernel=1
 ):
     return _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr,
-        K, kernel, ae_threshold, num_dets, "group")
+        K, kernel, "group")
 
 # 这个函数定义了一个负采样损失（negative loss），通常用于二分类问题，特别是在目标检测和图像分割任务中，其中正样本（目标）和负样本（背景）的数量可能会极度不平衡。
 # 接受四个参数：preds（模型的预测值），gt（真实的地面真值标签），lambda_ 和 lambda_b（损失计算中使用的超参数）。
