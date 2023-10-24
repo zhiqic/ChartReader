@@ -16,7 +16,7 @@ def kp_decode(nnet, images, K, kernel=3):
         detections_br = detections_br.data.cpu().numpy().transpose((2, 1, 0))
         return detections_tl, detections_br, group_scores
 
-def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0):
+def kp_grouping(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0):
     # 参数初始化
     K = db.configs["top_k"]
     nms_kernel = db.configs["nms_kernel"]
@@ -116,4 +116,4 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
     return top_points_tl, top_points_br, group_scores
 
 def testing(image, db, nnet, debug=False):
-    return globals()[system_configs.sampling_function](image, db, nnet, debug=debug)
+    return globals()[system_configs.testing_function](image, db, nnet, debug=debug)

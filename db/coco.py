@@ -41,12 +41,6 @@ class Chart(DETECTION):
 
         self._mean = np.array([0.40789654, 0.44719302, 0.47026115], dtype=np.float32)
         self._std = np.array([0.28863828, 0.27408164, 0.27809835], dtype=np.float32)
-        self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571], dtype=np.float32)
-        self._eig_vec = np.array([
-            [-0.58752847, -0.69563484, 0.41340352],
-            [-0.5832747, 0.00994535, -0.81221408],
-            [-0.56089297, 0.71832671, 0.41158938]
-        ], dtype=np.float32)
 
         self._cat_ids = [
             1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -123,8 +117,8 @@ class Chart(DETECTION):
                 #print(f"Annotation_ids = {annotation_ids}")
                 category = self._coco_to_class_map[cat_id]
                 #print(f"Current category: {category}") 
+                max_len = 0
                 if(cat_id == 2):
-                    max_len = 0
                     for annotation in annotations:
                         #annotation_id = annotation["id"]
                         #print(f"Annotation id: {annotation_id}")
@@ -132,13 +126,12 @@ class Chart(DETECTION):
                         bboxes.append(bbox)
                         categories.append(category)
                         max_len = max(max_len, len(bbox))
-                    for ind_bbox in range(len(bboxes)):
-                        if len(bboxes[ind_bbox]) < max_len: bboxes[ind_bbox] = np.pad(bboxes[ind_bbox], (0, max_len - len(bboxes[ind_bbox])), 'constant', constant_values=(0, 0))
                 elif(cat_id == 3):
                     for annotation in annotations:
                         #annotation_id = annotation["id"]
                         #print(f"Annotation id: {annotation_id}")
                         bbox = np.array(annotation["bbox"])
+                        max_len = max(max_len, len(bbox))
                         bboxes.append(bbox)
                         categories.append(category)
                 else:
@@ -146,14 +139,22 @@ class Chart(DETECTION):
                         #annotation_id = annotation["id"]
                         #print(f"Annotation id: {annotation_id}")
                         bbox = np.array(annotation["bbox"])
+                        max_len = max(max_len, len(bbox))
                         bbox[[2, 3]] += bbox[[0, 1]]
                         bboxes.append(bbox)
                         categories.append(category)
-            #bboxes = np.array(bboxes, dtype=float)
-            #categories = np.array(categories, dtype=float)
+                for ind_bbox in range(len(bboxes)):
+                    if len(bboxes[ind_bbox]) < max_len: bboxes[ind_bbox] = np.pad(bboxes[ind_bbox], (0, max_len - len(bboxes[ind_bbox])), 'constant', constant_values=(0, 0))
+            bboxes = np.array(bboxes, dtype=float)
+            categories = np.array(categories, dtype=float)
             #print(f"Bboxes: {bboxes}")
             #print(f"Categories: {categories}")
-            self._detections[image_id] = (bboxes, categories)
+            if bboxes.size == 0 or categories.size == 0:
+                self._detections[image_id] = np.zeros((0, 5), dtype=np.float32)
+            else:
+                #self._detections[image_id] = np.hstack((bboxes, categories[:, None]))
+                self._detections[image_id] = (bboxes, categories)
+                #print(self._detections[image_id])
 
     def detections(self, ind):
         image_id = self._image_ids[ind]
@@ -161,7 +162,8 @@ class Chart(DETECTION):
         # detections.astype(float): 这一部分将 detections 数组中的所有元素的数据类型转换为浮点数 (float)。如果 detections 原先是整数或其他类型，这个操作会创建一个新的数组，其中所有的元素都是浮点数形式。
 
         # .copy(): 这一部分创建了 detections 数组的一个深拷贝。这意味着这个复制不会影响原数组。
-        return tuple(convert_to_float(x) for x in detections)
+        return copy.deepcopy(detections)
+        #return detections.astype(float).copy()
 
     def _to_float(self, x):
         return float("{:.2f}".format(x))

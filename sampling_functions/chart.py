@@ -6,6 +6,42 @@ import math
 from config import system_configs
 from .sampling_utils import _full_image_crop, _resize_image, _clip_detections
 
+import matplotlib.pyplot as plt
+import os
+
+def save_key_heatmaps(key_heatmaps, save_dir='heatmaps'):
+    """
+    Save the key heatmaps for each category as images.
+
+    Parameters:
+    - key_heatmaps: 4D NumPy array of shape (batch_size, categories, output_size[0], output_size[1])
+    - save_dir: Directory where to save the heatmap images.
+    """
+
+    # 创建保存热图的目录，如果不存在的话
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    batch_size, categories, _, _ = key_heatmaps.shape
+
+    for b in range(batch_size):
+        for c in range(categories):
+            # 提取单个热图
+            heatmap = key_heatmaps[b, c, :, :]
+
+            plt.imshow(heatmap, cmap='hot', interpolation='nearest')
+            plt.colorbar()
+
+            plt.title(f'Batch {b + 1}, Category {c + 1} Key Heatmap')
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+
+            # 保存热图为图片
+            plt.savefig(os.path.join(save_dir, f'{b+1}_category_{c+1}_key_heatmap.png'))
+
+            # 清除当前图形，以便绘制下一个
+            plt.clf()
+
 def bad_p(x, y, output_size):
     # 检查坐标是否位于输出大小的有效范围之外
     # 通过减去一个非常小的值，该函数确保坐标不会正好位于边界上。
@@ -70,20 +106,20 @@ def kp_sampling(db, k_ind, debug):
             # reading image 
             image_file = db.image_file(db_ind)
             if(os.path.exists(image_file) and len(db.detections(db_ind)) <= max_tag_len//3) and len(db.detections(db_ind)) > 0: 
+                #print(db.detections(db_ind))
                 (detections, categories) = db.detections(db_ind)
-                detections = list(detections)
-                categories = list(categories)
                 if(len(categories)):
                     flag = True
         image = cv2.imread(image_file)
             #print(temp)
         #print(f"k_ind: {k_ind}")
         (detections, categories) = db.detections(db_ind)
-        detections = list(detections)
-        categories = list(categories)
+        #print(detections)
         #print(f"Detections: {detections}")
         #print(f"Length of detection: {len(detections)}")
         #print(f"Categories: {categories}")
+        detections = detections.tolist()
+        max_len = 0
         for i in range(len(detections)):
             if(categories[i] == 3):
                 detection = detections[i]
@@ -93,7 +129,12 @@ def kp_sampling(db, k_ind, debug):
                     print(image_file)
                     continue
                 xce, yce = get_center((detection[0], detection[1]), (detection[2], detection[3]), (detection[4], detection[5]))
-                detections[i] = detection[:6] + [xce, yce] + [detection[-1]]
+                detections[i] = np.concatenate((detection[:6], [xce, yce], [detection[-1]]), axis=0)
+                max_len = max(max_len, len(detections[i]))
+        for i in range(len(detections)):
+            if len(detections[i]) < max_len: detections[i] = np.pad(detections[i], (0, max_len - len(detections[i])), 'constant', constant_values=(0, 0)) 
+        #print(detections)
+        detections = np.array(detections)
         #if(categories[0] == 2):
             #detections = detections[0:max_group_len]
             #categories = categories[0:max_group_len]
@@ -107,22 +148,25 @@ def kp_sampling(db, k_ind, debug):
         detections = _clip_detections(image, detections)
         width_ratio  = output_size[1] / input_size[1]
         height_ratio = output_size[0] / input_size[0]
+        #print(f"input size:{input_size}")
         #print(f"width ratio: {width_ratio}, height ratio: {height_ratio}")
         #print(f"Clipped detections: {detections}")
         if not debug:
+            #将图像数组的数据类型转换为浮点型（float32）。在 NumPy 中，astype 方法用于更改数组的数据类型。
             image = image.astype(np.float32) / 255.
             #normalize_(image, db.mean, db.std)
         images[b_ind] = image.transpose((2, 0, 1))
-        for ind, (detection, category) in enumerate(zip(detections, categories)):
-       #     print(f"ind: {ind}, detection: {detection}, category: {category}")
-            if(int(category) == 2):
+        for ind, (detection, _category) in enumerate(zip(detections, categories)):
+            #print(f"ind: {ind}, detection: {detection}, category: {category}")
+            category = int(_category)
+            if(category == 2):
                 # remove cropped points
                 tmp = []
                 for k in range(int(len(detection) / 2)):
                     #print(f"k = {k}")
                     if not bad_p(detection[2*k], detection[2*k+1], input_size):
-                        tmp.append(detection[2*k].copy())
-                        tmp.append(detection[2*k+1].copy())
+                        tmp.append(detection[2*k])
+                        tmp.append(detection[2*k+1])
                 detection = np.array(tmp)
 
                 # get center
@@ -150,8 +194,8 @@ def kp_sampling(db, k_ind, debug):
                         #print(f"k: {k}")
                         #print(f"{detection[2*k + 1]}")
                         #print(f"{detection[2*k]}")
-                        key_heatmaps[b_ind, int(category), detection[2 * k + 1],detection[2 * k]] = 1
-                        center_heatmaps[b_ind, int(category), yce, xce] = 1
+                        key_heatmaps[b_ind, category, detection[2 * k + 1],detection[2 * k]] = 1
+                        center_heatmaps[b_ind, category, yce, xce] = 1
 
                 for k in range(int(len(detection) / 2)):
                     if not bad_p(detection[2*k], detection[2*k+1], output_size):
@@ -179,7 +223,7 @@ def kp_sampling(db, k_ind, debug):
                 key_masks[b_ind, :tag_len] = 1
                 tag_len = tag_lens_cens[b_ind]
                 center_masks[b_ind, :tag_len] = 1
-            elif(int(category) == 3):
+            elif(category == 3):
                 # print(f"Processing pies, detection is {detection}")
                 if len(detection) < 5:
                         print("Insufficient elements in the detection list.")
@@ -215,10 +259,10 @@ def kp_sampling(db, k_ind, debug):
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
 
-                center_heatmaps[b_ind, int(category), yce, xce] = 1
-                key_heatmaps[b_ind, int(category), yk1, xk1] = 1
-                key_heatmaps[b_ind, int(category), yk2, xk2] = 1
-                key_heatmaps[b_ind, int(category), yk3, xk3] = 1
+                center_heatmaps[b_ind, category, yce, xce] = 1
+                key_heatmaps[b_ind, category, yk1, xk1] = 1
+                key_heatmaps[b_ind, category, yk2, xk2] = 1
+                key_heatmaps[b_ind, category, yk3, xk3] = 1
 
                 key_regrs[b_ind, tag_lens_keys[b_ind], :] = [fxk1 - xk1, fyk1 - yk1]
                 key_tags[b_ind, tag_lens_keys[b_ind]] = yk1 * output_size[1] + xk1
@@ -246,8 +290,12 @@ def kp_sampling(db, k_ind, debug):
                 key_masks[b_ind, :tag_lens_keys[b_ind]] = 1
             else:
                 # 提取检测框的左上角和右下角坐标，以及中心点坐标。
+                #print(f"bind:{b_ind}")
+                #print(f"category:{category}")
                 xk1, yk1 = detection[0], detection[1] # top left point	
                 xk2, yk2 = detection[2], detection[3] # bottom right point	
+                #print(xk1, yk1)
+                #print(xk2, yk2)
                 xce, yce = (xk1 + xk2) / 2, (yk1 + yk2) / 2 # center point	
                 # 使用宽度和高度比率调整检测框的坐标。
                 fxk1 = (xk1 * width_ratio)	
@@ -263,6 +311,8 @@ def kp_sampling(db, k_ind, debug):
                 yk2 = int(fyk2)	
                 xce = int(fxce)	
                 yce = int(fyce)	
+                #print(xk1, yk1)
+                #print(xk2, yk2)
                 xk1 = min(xk1, key_heatmaps.shape[3] - 1)
                 yk1 = min(yk1, key_heatmaps.shape[2] - 1)
                 xk2 = min(xk2, key_heatmaps.shape[3] - 1)
@@ -270,9 +320,12 @@ def kp_sampling(db, k_ind, debug):
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
                 # 如果使用高斯 bump，则通过调用 draw_gaussian 函数来绘制中心热图和关键热图。否则，直接在热图上设置值。
-                center_heatmaps[b_ind, int(category), yce, xce] = 1	
-                key_heatmaps[b_ind, int(category), yk1, xk1] = 1	
-                key_heatmaps[b_ind, int(category), yk2, xk2] = 1	
+                center_heatmaps[b_ind, category, yce, xce] = 1	
+                key_heatmaps[b_ind, category, yk1, xk1] = 1
+                key_heatmaps[b_ind, category, yk2, xk2] = 1
+                #print(xk1, yk1)
+                #print(xk2, yk2)
+                #print(yce, xce)
                 # 为回归任务计算关键点和中心点的偏移。
                 tag_ind = tag_lens_keys[b_ind]	
                 #print(f"b_ind: {b_ind}")
@@ -309,6 +362,7 @@ def kp_sampling(db, k_ind, debug):
     #print(f"tag_lens_keys: {tag_lens_keys}")
     images          = torch.from_numpy(images)
     key_heatmaps    = torch.from_numpy(key_heatmaps)
+    #save_key_heatmaps(center_heatmaps)
     center_heatmaps = torch.from_numpy(center_heatmaps)
     key_regrs       = torch.from_numpy(key_regrs)
     center_regrs    = torch.from_numpy(center_regrs)

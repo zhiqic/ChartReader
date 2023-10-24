@@ -6,7 +6,7 @@ class Config:
         self._configs = {}
         self._configs["dataset"] = None
         self._configs["sampling_function"] = "kp_sampling"
-
+        self._configs["testing_function"] = None
         # Training Config
         self._configs["snapshot"]          = 5000
         self._configs["stepsize"]          = 450000
@@ -51,6 +51,10 @@ class Config:
     @property
     def sampling_function(self):
         return self._configs["sampling_function"]
+
+    @property
+    def testing_function(self):
+        return self._configs["testing_function"]
 
     @property
     def data_rng(self):
