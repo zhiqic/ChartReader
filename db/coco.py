@@ -29,7 +29,7 @@ class Chart(DETECTION):
             "testchart": "test2019"
         }[self._split]
 
-        self._coco_dir = os.path.join(data_dir, "cls")
+        self._coco_dir = data_dir
 
         self._label_dir = os.path.join(self._coco_dir, "annotations")
         self._label_file = os.path.join(self._label_dir, "chart_{}.json")
@@ -43,7 +43,7 @@ class Chart(DETECTION):
         self._std = np.array([0.28863828, 0.27408164, 0.27809835], dtype=np.float32)
 
         self._cat_ids = [
-            1, 2, 3, 4, 5, 6, 7, 8, 9
+            1, 2, 3, 4, 5, 6, 7
         ]
         self._classes = {
             ind + 1: cat_id for ind, cat_id in enumerate(self._cat_ids)

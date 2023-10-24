@@ -15,7 +15,7 @@ torch.backends.cudnn.enabled   = True
 torch.backends.cudnn.benchmark = True
 import wandb
 import logging
-import ptvsd
+#import ptvsd
 #ptvsd.enable_attach(address=('0.0.0.0', 5678))
 #ptvsd.wait_for_attach()
 
@@ -118,7 +118,7 @@ def parse_args():
     parser.add_argument("--cfg_file",
                         dest="cfg_file",
                         help="Specify the configuration file to be used for training.",
-                        default="KPGrouping",
+                        default="KPDetection",
                         type=str)
 
     parser.add_argument("--iter",
@@ -133,9 +133,10 @@ def parse_args():
                         default="KPDetection.pkl",
                         type=str)
 
-    parser.add_argument('--cache_path',
+    parser.add_argument("--cache_path",
                         dest="cache_path",
                         help="Specify the cache path.",
+                        default="./data/cache/",
                         type=str)
 
     parser.add_argument("--data_dir",

@@ -19,7 +19,7 @@ def kp_decode(nnet, images, K, kernel=3):
             detections_br = detections_br.data.cpu().numpy().transpose((2, 1, 0))
             return detections_tl, detections_br
 
-def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0):
+def kp_detection(image, db, nnet, decode_func=kp_decode, cuda_id=0):
     K = db.configs["top_k"]
     nms_kernel = db.configs["nms_kernel"]
 
@@ -29,13 +29,10 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
 
     detections_point_tl = []
     detections_point_br = []
-    scale = 1.0
-    new_height = int(height * scale)
-    new_width  = int(width * scale)
-    new_center = np.array([new_height // 2, new_width // 2])
+    center = np.array([height // 2, width // 2])
 
-    inp_height = new_height | 127
-    inp_width  = new_width  | 127
+    inp_height = height | 127
+    inp_width  = width  | 127
     images  = np.zeros((1, 3, inp_height, inp_width), dtype=np.float32)
     ratios  = np.zeros((1, 2), dtype=np.float32)
     borders = np.zeros((1, 4), dtype=np.float32)
@@ -45,14 +42,14 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
     height_ratio = out_height / inp_height
     width_ratio  = out_width  / inp_width
 
-    resized_image = cv2.resize(image, (new_width, new_height))
-    resized_image, border, offset = crop_image(resized_image, new_center, [inp_height, inp_width])
+    resized_image = cv2.resize(image, (width, height))
+    resized_image, border, offset = crop_image(resized_image, center, [inp_height, inp_width])
 
     resized_image = resized_image / 255.
 
     images[0]  = resized_image.transpose((2, 0, 1))
     borders[0] = border
-    sizes[0]   = [int(height * scale), int(width * scale)]
+    sizes[0]   = [height, width]
     ratios[0]  = [height_ratio, width_ratio]
 
     if torch.cuda.is_available():
@@ -123,5 +120,5 @@ def kp_detection(image, db, nnet, debug=False, decode_func=kp_decode, cuda_id=0)
             top_points_br[j] = top_points_br[j][keep_inds]
     return top_points_tl, top_points_br
 
-def testing(image, db, nnet, debug=False):
-    return globals()[system_configs.testing_function](image, db, nnet, debug=debug)
+def testing(image, db, nnet):
+    return globals()[system_configs.testing_function](image, db, nnet)

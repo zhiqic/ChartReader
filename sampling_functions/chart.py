@@ -5,7 +5,7 @@ import os
 import math
 from config import system_configs
 from .sampling_utils import _full_image_crop, _resize_image, _clip_detections
-
+from img_utils import normalize_
 import matplotlib.pyplot as plt
 import os
 
@@ -62,7 +62,7 @@ def get_center(a, b, c):
         return 2*c[0]-(a[0]+b[0]+c[0])/3., 2*c[1]-(a[1]+b[1]+c[1])/3.
 
 
-def kp_sampling(db, k_ind, debug):
+def kp_sampling(db, k_ind):
     batch_size = system_configs.batch_size
 
     categories   = db.configs["categories"]
@@ -97,7 +97,7 @@ def kp_sampling(db, k_ind, debug):
     # k_ind 是一个控制变量，用于追踪我们当前在数据库中的哪个位置
     for b_ind in range(batch_size):
         #print(f"b_ind = {b_ind}")
-        if not debug and k_ind == 0:
+        if k_ind == 0:
             db.shuffle_inds()
         flag = False
         while not flag:
@@ -151,10 +151,9 @@ def kp_sampling(db, k_ind, debug):
         #print(f"input size:{input_size}")
         #print(f"width ratio: {width_ratio}, height ratio: {height_ratio}")
         #print(f"Clipped detections: {detections}")
-        if not debug:
-            #将图像数组的数据类型转换为浮点型（float32）。在 NumPy 中，astype 方法用于更改数组的数据类型。
-            image = image.astype(np.float32) / 255.
-            #normalize_(image, db.mean, db.std)
+        #将图像数组的数据类型转换为浮点型（float32）。在 NumPy 中，astype 方法用于更改数组的数据类型。
+        image = image.astype(np.float32) / 255.
+        normalize_(image, db.mean, db.std)
         images[b_ind] = image.transpose((2, 0, 1))
         for ind, (detection, _category) in enumerate(zip(detections, categories)):
             #print(f"ind: {ind}, detection: {detection}, category: {category}")
@@ -381,6 +380,6 @@ def kp_sampling(db, k_ind, debug):
 
 # globals() 是一个内置函数，返回一个代表当前全局符号表的字典。这个符号表始终针对当前模块（对函数或方法来说，是定义它们的模块），不是调用它的模块。
 # 动态函数调用：globals()[system_configs.sampling_function] 这一部分是在从全局符号表中查找一个与 system_configs.sampling_function 字符串匹配的函数，并将其返回。
-# 函数调用：一旦找到了匹配的函数，它就会像普通函数一样被调用，并传入 db, k_ind, debug 参数。
-def sample_data(db, k_ind, debug=False):
-    return globals()[system_configs.sampling_function](db, k_ind, debug)
+# 函数调用：一旦找到了匹配的函数，它就会像普通函数一样被调用，并传入 db, k_ind 参数。
+def sample_data(db, k_ind):
+    return globals()[system_configs.sampling_function](db, k_ind)

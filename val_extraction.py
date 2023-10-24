@@ -82,8 +82,10 @@ def get_groups(keys, cens, group_scores):
     group_scores = group_scores[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
     groups = []
     group_thres = 0.5
+    #print(keys_trim)
+    if len(cens_trim) == 0 or len(keys_trim) < 2: return []
     # 初始化组列表和组阈值。
-    if img_type == "Line":
+    if keys_trim[0][1] == 2:
         if len(cens_trim) == 0 or len(keys_trim) < 2: return []
         # 遍历中心点，并根据分数将关键点组织成组。
         for i in range(len(cens_trim)):
@@ -102,7 +104,7 @@ def get_groups(keys, cens, group_scores):
             groups.append(group)
         return groups
     
-    if img_type == "Bar":
+    if keys_trim[0][1] == 1:
         # 如果 cens_trim 为空或 keys_trim 长度小于2，则返回空列表。这可能是为了确保有足够的数据来继续处理。
         if len(cens_trim) == 0 or len(keys_trim) < 2: return []
         # 截取 group_scores 矩阵的一部分，可能与集中度和关键点有关。
@@ -110,7 +112,7 @@ def get_groups(keys, cens, group_scores):
         # 列索引：[len(cens_trim) : len(keys_trim) + len(cens_trim)] - 这部分选择了从 len(cens_trim) 到 len(keys_trim) + len(cens_trim) 的列，其中 keys_trim 可能表示关键点的一个子集。
         # 使用 PyTorch 的 topk 函数从 group_scores 中选择前2个最大值，并获取它们的值和索引。
         vals, inds = torch.topk(group_scores, 2)
-    elif img_type == "Pie":
+    elif keys_trim[0][1] == 3:
         if len(cens_trim) == 0 or len(keys_trim) < 3: return []
         vals, inds = torch.topk(group_scores, 3)
         group_thres = 0.1
@@ -135,7 +137,7 @@ def test(image_path, model_type):
     # 使用 PyTorch 的 torch.no_grad() 上下文管理器来禁用梯度计算，以提高推理速度并减少内存使用。
     with torch.no_grad():
         # 使用预加载的 'KPDetection' 方法（存储在 methods 字典中）对图像进行关键点检测。methods['KPDetection'][2] 是测试函数，methods['KPDetection'][0] 是数据库对象，methods['KPDetection'][1] 是神经网络对象。
-        results = methods[model_type][2](image, methods[model_type][0], methods[model_type][1], debug=False)
+        results = methods[model_type][2](image, methods[model_type][0], methods[model_type][1])
         if model_type == 'KPDetection':
             # 从 results 中提取关键点（keys）和中心点（centers）。
             keys, centers = results[0], results[1]
@@ -148,6 +150,8 @@ def test(image_path, model_type):
             # 与 'KPDetection' 相同，但这里没有应用阈值过滤。
             keys = {k: [p for p in v.tolist()] for k,v in keys.items()} 
             centers = {k: [p for p in v.tolist()] for k,v in centers.items()}
+            #print(keys)
+            #print(centers)
             groups = get_groups(keys, centers, group_scores)
             
             return (keys, centers, groups)
@@ -181,14 +185,14 @@ def parse_args():
 
     parser.add_argument("--data_dir",
                         dest="data_dir",
-                        help="Path to the directory where the data is located. Default is 'data/clsdata(1031)'.",
-                        default="data/clsdata(1031)",
+                        help="Path to the directory where the data is located. Default is 'data/extraction_data'.",
+                        default="data/extraction_data",
                         type=str)
 
     parser.add_argument('--cache_path',
                         dest="cache_path",
                         help="Specify the cache path. Default is 'data/chart/cache/'.",
-                        default="data/chart/cache/",
+                        default="data/cache/",
                         type=str)
 
     args = parser.parse_args()
