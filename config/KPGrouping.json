@@ -27,6 +27,11 @@
         "input_size": [511, 511],
         "output_sizes": [[128, 128]],
 
+        "gaussian_bump": true,
+        "gaussian_iou": 0.3,
+        
+        "rand_color": true,
+        
         "top_k": 100,
         "categories": 8,
         "nms_threshold": 0.5,

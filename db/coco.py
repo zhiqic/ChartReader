@@ -41,7 +41,12 @@ class Chart(DETECTION):
 
         self._mean = np.array([0.40789654, 0.44719302, 0.47026115], dtype=np.float32)
         self._std = np.array([0.28863828, 0.27408164, 0.27809835], dtype=np.float32)
-
+        self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571], dtype=np.float32)
+        self._eig_vec = np.array([
+            [-0.58752847, -0.69563484, 0.41340352],
+            [-0.5832747, 0.00994535, -0.81221408],
+            [-0.56089297, 0.71832671, 0.41158938]
+        ], dtype=np.float32)
         self._cat_ids = [
             1, 2, 3, 4, 5, 6, 7
         ]
@@ -107,6 +112,7 @@ class Chart(DETECTION):
             image = self._coco.loadImgs(coco_image_id)[0]
             bboxes = []
             categories = []
+            max_len = 0
             for cat_id in self._cat_ids:
                 #print(f"Current category id:{cat_id}")
                 annotation_ids = self._coco.getAnnIds(imgIds=image["id"], catIds=cat_id)
@@ -117,7 +123,6 @@ class Chart(DETECTION):
                 #print(f"Annotation_ids = {annotation_ids}")
                 category = self._coco_to_class_map[cat_id]
                 #print(f"Current category: {category}") 
-                max_len = 0
                 if(cat_id == 2):
                     for annotation in annotations:
                         #annotation_id = annotation["id"]
@@ -229,4 +234,3 @@ class Chart(DETECTION):
         coco_eval.accumulate()
         coco_eval.summarize()
         return coco_eval.stats[0], coco_eval.stats[12:]
-

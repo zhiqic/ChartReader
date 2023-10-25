@@ -10,6 +10,11 @@ class BASE():
         self._data            = "chart"
         self._image_file      = None
         # 存储图像数据的均值。通常用于归一化操作。设置为三个浮点数的零数组，可能代表RGB通道的均值。
+         # 存储特征值
+        self._eig_val = np.ones((3, ), dtype=np.float32)
+        # 存储特征向量
+        self._eig_vec = np.zeros((3, 3), dtype=np.float32)
+
         self._mean = np.zeros((3, ), dtype=np.float32)
         # 存储图像数据的标准差。通常用于归一化操作。设置为三个浮点数的一数组，可能代表RGB通道的标准差。
         self._std = np.ones((3, ), dtype=np.float32)
@@ -36,6 +41,13 @@ class BASE():
     def std(self):
         return self._std
 
+    @property
+    def eig_val(self):
+        return self._eig_val
+
+    @property
+    def eig_vec(self):
+        return self._eig_vec
 
     @property
     def db_inds(self):

@@ -4,10 +4,11 @@ import torch
 import os
 import math
 from config import system_configs
-from .sampling_utils import _full_image_crop, _resize_image, _clip_detections
+from .sampling_utils import _full_image_crop, _resize_image, _clip_detections, draw_gaussian, gaussian_radius
 from img_utils import normalize_
 import matplotlib.pyplot as plt
 import os
+from img_utils import color_jittering_, lighting_
 
 def save_key_heatmaps(key_heatmaps, save_dir='heatmaps'):
     """
@@ -64,12 +65,18 @@ def get_center(a, b, c):
 
 def kp_sampling(db, k_ind):
     batch_size = system_configs.batch_size
-
+    data_rng = system_configs.data_rng
     categories   = db.configs["categories"]
     input_size   = db.configs["input_size"]
     output_size  = db.configs["output_sizes"][0]
-
+    gaussian_bump = db.configs["gaussian_bump"]
+    gaussian_iou  = db.configs["gaussian_iou"]
+    gaussian_rad  = db.configs["gaussian_radius"]
+    rand_color = db.configs["rand_color"]
+    lighting = db.configs["lighting"]
     max_tag_len = 256
+    max_group_len = 16
+
      # allocating memory
     images          = np.zeros((batch_size, 3, input_size[0], input_size[1]), dtype=np.float32)
     # 分配两个张量，用于存储关键点和中心点的热图
@@ -111,6 +118,7 @@ def kp_sampling(db, k_ind):
                 if(len(categories)):
                     flag = True
         image = cv2.imread(image_file)
+        ori_size = image.shape
             #print(temp)
         #print(f"k_ind: {k_ind}")
         (detections, categories) = db.detections(db_ind)
@@ -120,6 +128,7 @@ def kp_sampling(db, k_ind):
         #print(f"Categories: {categories}")
         detections = detections.tolist()
         max_len = 0
+        cur_group_len = 0
         for i in range(len(detections)):
             if(categories[i] == 3):
                 detection = detections[i]
@@ -130,16 +139,19 @@ def kp_sampling(db, k_ind):
                     continue
                 xce, yce = get_center((detection[0], detection[1]), (detection[2], detection[3]), (detection[4], detection[5]))
                 detections[i] = np.concatenate((detection[:6], [xce, yce], [detection[-1]]), axis=0)
-                max_len = max(max_len, len(detections[i]))
+            elif(categories[i] == 2):
+                cur_group_len += 1
+                if(cur_group_len > max_group_len):
+                    del detections[i]
+                    del categories[i]
+            max_len = max(max_len, len(detections[i]))
         for i in range(len(detections)):
             if len(detections[i]) < max_len: detections[i] = np.pad(detections[i], (0, max_len - len(detections[i])), 'constant', constant_values=(0, 0)) 
         #print(detections)
         detections = np.array(detections)
-        #if(categories[0] == 2):
-            #detections = detections[0:max_group_len]
-            #categories = categories[0:max_group_len]
         # cropping an image randomly
         image, detections = _full_image_crop(image, detections)
+        scale = 1
         #cv2.imwrite('cropped.png', image)
         #print(f"Cropped detections: {detections}")
         image, detections = _resize_image(image, detections, input_size)
@@ -153,6 +165,10 @@ def kp_sampling(db, k_ind):
         #print(f"Clipped detections: {detections}")
         #将图像数组的数据类型转换为浮点型（float32）。在 NumPy 中，astype 方法用于更改数组的数据类型。
         image = image.astype(np.float32) / 255.
+        if rand_color:
+            color_jittering_(data_rng, image)
+            if lighting:
+                lighting_(data_rng, image, 0.1, db.eig_val, db.eig_vec)
         normalize_(image, db.mean, db.std)
         images[b_ind] = image.transpose((2, 0, 1))
         for ind, (detection, _category) in enumerate(zip(detections, categories)):
@@ -187,14 +203,30 @@ def kp_sampling(db, k_ind):
                 fdetection[0:len(fdetection):2] = detection[0:len(detection):2] * width_ratio
                 fdetection[1:len(fdetection):2] = detection[1:len(detection):2] * height_ratio
                 detection = fdetection.astype(np.int32)
+                if gaussian_bump:
+                    width = ori_size[1] / 50 / 4 / scale
+                    height = ori_size[0] / 50 / 4 / scale
 
-                for k in range(int(len(detection) / 2)):
-                    if not bad_p(detection[2*k], detection[2*k+1], output_size):
-                        #print(f"k: {k}")
-                        #print(f"{detection[2*k + 1]}")
-                        #print(f"{detection[2*k]}")
-                        key_heatmaps[b_ind, category, detection[2 * k + 1],detection[2 * k]] = 1
-                        center_heatmaps[b_ind, category, yce, xce] = 1
+                    if gaussian_rad == -1:
+                        radius = gaussian_radius((height, width), gaussian_iou)
+                        radius = max(0, int(radius))
+                    else:
+                        radius = gaussian_rad
+
+                    for k in range(int(len(detection) / 2)):
+                        if not bad_p(detection[2*k], detection[2*k+1], output_size):
+                            draw_gaussian(key_heatmaps[b_ind, int(category)], [detection[2 * k], detection[2 * k + 1]], radius)
+                    if not bad_p(xce, yce, output_size):
+                        draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
+
+                else:
+                    for k in range(int(len(detection) / 2)):
+                        if not bad_p(detection[2*k], detection[2*k+1], output_size):
+                            #print(f"k: {k}")
+                            #print(f"{detection[2*k + 1]}")
+                            #print(f"{detection[2*k]}")
+                            key_heatmaps[b_ind, category, detection[2 * k + 1],detection[2 * k]] = 1
+                            center_heatmaps[b_ind, category, yce, xce] = 1
 
                 for k in range(int(len(detection) / 2)):
                     if not bad_p(detection[2*k], detection[2*k+1], output_size):
@@ -257,11 +289,25 @@ def kp_sampling(db, k_ind):
                 yk3 = min(yk3, key_heatmaps.shape[2] - 1)
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
+                if gaussian_bump:
+                    width = math.sqrt(math.pow(xk3-xk1, 2)+math.pow(yk3-yk1, 2))
+                    height = math.sqrt(math.pow(xk3-xk2, 2)+math.pow(yk3-yk2, 2))
 
-                center_heatmaps[b_ind, category, yce, xce] = 1
-                key_heatmaps[b_ind, category, yk1, xk1] = 1
-                key_heatmaps[b_ind, category, yk2, xk2] = 1
-                key_heatmaps[b_ind, category, yk3, xk3] = 1
+                    if gaussian_rad == -1:
+                        radius = gaussian_radius((height, width), gaussian_iou)
+                        radius = max(0, int(radius))
+                    else:
+                        radius = gaussian_rad
+
+                    draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
+                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk1, yk1], radius)
+                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk2, yk2], radius)
+                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk3, yk3], radius)
+                else:
+                    center_heatmaps[b_ind, category, yce, xce] = 1
+                    key_heatmaps[b_ind, category, yk1, xk1] = 1
+                    key_heatmaps[b_ind, category, yk2, xk2] = 1
+                    key_heatmaps[b_ind, category, yk3, xk3] = 1
 
                 key_regrs[b_ind, tag_lens_keys[b_ind], :] = [fxk1 - xk1, fyk1 - yk1]
                 key_tags[b_ind, tag_lens_keys[b_ind]] = yk1 * output_size[1] + xk1
@@ -319,9 +365,30 @@ def kp_sampling(db, k_ind):
                 xce = min(xce, key_heatmaps.shape[3] - 1)
                 yce = min(yce, key_heatmaps.shape[2] - 1)
                 # 如果使用高斯 bump，则通过调用 draw_gaussian 函数来绘制中心热图和关键热图。否则，直接在热图上设置值。
-                center_heatmaps[b_ind, category, yce, xce] = 1	
-                key_heatmaps[b_ind, category, yk1, xk1] = 1
-                key_heatmaps[b_ind, category, yk2, xk2] = 1
+                if gaussian_bump:	
+                    width  = detection[2] - detection[0]	
+                    height = detection[3] - detection[1]	
+
+                    width  = math.ceil(width * width_ratio)	
+                    height = math.ceil(height * height_ratio)	
+
+                    if gaussian_rad == -1:	
+                        radius = gaussian_radius((height, width), gaussian_iou)	
+                        radius = max(0, int(radius))	
+                    else:	
+                        radius = gaussian_rad	
+
+                    #draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)	
+                    if 0 <= b_ind < batch_size and 0 <= int(category) < 10:
+                        draw_gaussian(center_heatmaps[b_ind, int(category)], [xce, yce], radius)
+                    else:
+                        print(f"Invalid indices: b_ind={b_ind}, category={int(category)}")
+                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk1, yk1], radius)	
+                    draw_gaussian(key_heatmaps[b_ind, int(category)], [xk2, yk2], radius)	
+                else:	
+                    center_heatmaps[b_ind, category, yce, xce] = 1	
+                    key_heatmaps[b_ind, category, yk1, xk1] = 1
+                    key_heatmaps[b_ind, category, yk2, xk2] = 1
                 #print(xk1, yk1)
                 #print(xk2, yk2)
                 #print(yce, xce)
