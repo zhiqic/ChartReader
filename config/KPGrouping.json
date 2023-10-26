@@ -1,7 +1,7 @@
 {
     "system": {
         
-        "batch_size": 2,
+        "batch_size": 4,
         "sampling_function": "kp_sampling",
         "testing_function" : "kp_grouping",
         "train_split": "trainchart",
@@ -17,7 +17,7 @@
 
         "max_iter": 100000,
         "stepsize": 70000,
-        "snapshot": 2500,
+        "snapshot": 10000,
 
         "data_dir": "",
         "cache_dir": ""

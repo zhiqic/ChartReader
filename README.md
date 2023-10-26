@@ -71,7 +71,9 @@ To train the chart data extraction model, use the `train_extraction.py` script. 
 python train_extraction.py \
     --cfg_file KPDetection \
     --data_dir "data/extraction_data/" \
-    --cache_path "data/cache/"
+    --cache_path "data/cache/" \
+    --pretrain_model "KPDetection_20000.pkl" \
+    --iter 20000
 ```
 
 Then you can use the pretrained KP Detection model to train the KP grouping model, for example:
@@ -80,8 +82,9 @@ Then you can use the pretrained KP Detection model to train the KP grouping mode
 python train_extraction.py \
     --cfg_file KPGrouping \
     --data_dir "data/extraction_data/" \
-    --pretrain_model "KPDetection_15000.pkl" \
-    --cache_path "data/cache/"
+    --pretrain_model "KPGrouping_20000.pkl" \
+    --cache_path "data/cache/" \
+    --iter 20000
 ```
 
 ### Chart Question Answering Part
@@ -96,9 +99,9 @@ torchrun \
         --do_train \
         --do_eval \
         --do_predict \
-        --train_file="./data/qa_data/train/train.csv" \
-        --validation_file="./data/qa_data/val/val.csv" \
-        --test_file="./data/qa_data/test/test.csv" \
+        --train_file="./data/qa_data/train.csv" \
+        --validation_file="./data/qa_data/val.csv" \
+        --test_file="./data/qa_data/test.csv" \
         --text_column=Input \
         --summary_column=Output \
         --source_prefix="" \
@@ -137,9 +140,9 @@ e.g.
 
 ```shell
 python val_extraction.py \
-    --img_path "data/extraction_data/images/val2019" \
+    --img_path "data/extraction_data/images/val" \
     --save_path evaluation \
-    --model_type KPDetection \
+    --model_type KPGrouping \
     --cache_path "data/cache/" \
     --data_dir "data/extraction_data" \
     --iter 15000

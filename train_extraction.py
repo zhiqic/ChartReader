@@ -31,8 +31,8 @@ def train(training_db, validation_db, start_iter=0):
     print("Initializing model...")
     nnet = NetworkFactory(training_db)
     wandb.watch(nnet.model, log_freq=100)
-
     if pretrained_model is not None:
+        print(pretrained_model)
         if not os.path.exists(pretrained_model):
             raise ValueError("The requested pretrained model does not exist.")
         print("Loading pretrained model...")
@@ -174,7 +174,10 @@ if __name__ == "__main__":
     # print(file_list_data)
     configs["system"]["snapshot_name"] = args.cfg_file
     if args.cfg_file == "KPGrouping":
-        configs["system"]["pretrain"] = os.path.join(os.path.join(args.cache_path, 'nnet/KPDetection'), args.pretrain_model)
+        if(args.start_iter == 0):
+            configs["system"]["pretrain"] = os.path.join(os.path.join(args.cache_path, 'nnet/KPDetection'), args.pretrain_model)
+        else:
+            configs["system"]["pretrain"] = os.path.join(os.path.join(args.cache_path, 'nnet/KPGrouping'), args.pretrain_model)
     system_configs.update_config(configs["system"])
 
     train_split = system_configs.train_split

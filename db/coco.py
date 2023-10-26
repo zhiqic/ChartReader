@@ -24,16 +24,19 @@ class Chart(DETECTION):
 
         self._split = split
         self._dataset = {
-            "trainchart": "train2019",
-            "valchart": "val2019",
-            "testchart": "test2019"
+            "trainchart": "train",
+            "valchart": "val",
+            "testchart": "test"
         }[self._split]
-
+        is_inference = False
         self._coco_dir = data_dir
 
         self._label_dir = os.path.join(self._coco_dir, "annotations")
-        self._label_file = os.path.join(self._label_dir, "chart_{}.json")
+        self._label_file = os.path.join(self._label_dir, "{}.json")
         self._label_file = self._label_file.format(self._dataset)
+        if(not os.path.exists(self._label_file)):
+            self._label_file = None
+            is_inference = True
         print(f"Label file: {self._label_file}")
 
         self._image_dir = os.path.join(self._coco_dir, "images", self._dataset)
@@ -57,11 +60,11 @@ class Chart(DETECTION):
             value: key for key, value in self._classes.items()
         }
 
-        self._cache_file = os.path.join(cache_dir, "chart_{}.pkl".format(self._dataset))
-        self._load_data()
-        self._db_inds = np.arange(len(self._image_ids))
-
-        self._load_coco_data()
+        self._cache_file = os.path.join(cache_dir, "{}_cache.pkl".format(self._dataset))
+        if(not is_inference):
+            self._load_data()
+            self._db_inds = np.arange(len(self._image_ids))
+            self._load_coco_data()
 
     def _load_data(self):
         if not os.path.exists("./cache"):

@@ -17,7 +17,7 @@
 
         "max_iter": 50000,
         "stepsize": 20000,
-        "snapshot": 5000,
+        "snapshot": 10000,
 
         "data_dir": "",
         "cache_dir": ""

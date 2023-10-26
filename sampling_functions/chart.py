@@ -74,7 +74,7 @@ def kp_sampling(db, k_ind):
     gaussian_rad  = db.configs["gaussian_radius"]
     rand_color = db.configs["rand_color"]
     lighting = db.configs["lighting"]
-    max_tag_len = 256
+    max_tag_len = 512
     max_group_len = 16
 
      # allocating memory
@@ -116,7 +116,9 @@ def kp_sampling(db, k_ind):
                 #print(db.detections(db_ind))
                 (detections, categories) = db.detections(db_ind)
                 if(len(categories)):
-                    flag = True
+                    image = cv2.imread(image_file)
+                    if(image is not None):
+                        flag = True
         image = cv2.imread(image_file)
         ori_size = image.shape
             #print(temp)
@@ -129,7 +131,8 @@ def kp_sampling(db, k_ind):
         detections = detections.tolist()
         max_len = 0
         cur_group_len = 0
-        for i in range(len(detections)):
+        len_detections = len(detections)
+        for i in range(len_detections):
             if(categories[i] == 3):
                 detection = detections[i]
                 if len(detection) < 5:
@@ -141,11 +144,13 @@ def kp_sampling(db, k_ind):
                 detections[i] = np.concatenate((detection[:6], [xce, yce], [detection[-1]]), axis=0)
             elif(categories[i] == 2):
                 cur_group_len += 1
-                if(cur_group_len > max_group_len):
-                    del detections[i]
-                    del categories[i]
+                #if(cur_group_len > max_group_len):
+                    #del detections[i]
+                    #categories = np.delete(categories, i)
+                    #len_detections -= 1
+                    ##del categories[i]
             max_len = max(max_len, len(detections[i]))
-        for i in range(len(detections)):
+        for i in range(len_detections):
             if len(detections[i]) < max_len: detections[i] = np.pad(detections[i], (0, max_len - len(detections[i])), 'constant', constant_values=(0, 0)) 
         #print(detections)
         detections = np.array(detections)
