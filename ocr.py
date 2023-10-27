@@ -193,68 +193,6 @@ def find_bounding_boxes(top_left_points, bottom_right_points, is_vertical=True, 
 
     return bounding_boxes
 
-#def try_math(image_path, cls_info):
-    #title_list = [1, 2, 3]
-    #title2string = {}
-    #max_value = 1
-    #min_value = 0
-    #max_y = 0
-    #min_y = 1
-    #word_infos = ocr_result(image_path)
-    #for id in title_list:
-        #if id in cls_info.keys():
-            #predicted_box = cls_info[id]
-            #words = []
-            #for word_info in word_infos:
-                #word_bbox = [word_info["boundingBox"][0], word_info["boundingBox"][1], word_info["boundingBox"][4], word_info["boundingBox"][5]]
-                #if check_intersection(predicted_box, word_bbox) > 0.5:
-                    #words.append([word_info["text"], word_bbox[0], word_bbox[1]])
-            #words.sort(key=lambda x: x[1]+10*x[2])
-            #word_string = ""
-            #for word in words:
-                #word_string = word_string + word[0] + ' '
-            #title2string[id] = word_string
-    #if 5 in cls_info.keys():
-        #plot_area = cls_info[5]
-        #y_max = plot_area[1]
-        #y_min = plot_area[3]
-        #x_board = plot_area[0]
-        #dis_max = 10000000000000000
-        #dis_min = 10000000000000000
-        #for word_info in word_infos:
-            #word_bbox = [word_info["boundingBox"][0], word_info["boundingBox"][1], word_info["boundingBox"][4], word_info["boundingBox"][5]]
-            #word_text = word_info["text"]
-            #word_text = re.sub('[^-+0123456789.]', '',  word_text)
-            #word_text_num = re.sub('[^0123456789]', '', word_text)
-            #word_text_pure = re.sub('[^0123456789.]', '', word_text)
-            #if len(word_text_num) > 0 and word_bbox[2] <= x_board+4:
-                #dis2max = math.sqrt(math.pow((word_bbox[0]+word_bbox[2])/2-x_board, 2)+math.pow((word_bbox[1]+word_bbox[3])/2-y_max, 2))
-                #dis2min = math.sqrt(math.pow((word_bbox[0] + word_bbox[2]) / 2 - x_board, 2) + math.pow(
-                    #(word_bbox[1] + word_bbox[3]) / 2 - y_min, 2))
-                #y_mid = (word_bbox[1]+word_bbox[3])/2
-                #if dis2max <= dis_max:
-                    #dis_max = dis2max
-                    #max_y = y_mid
-                    #max_value = float(word_text_pure)
-                    #if word_text[0] == '-':
-                        #max_value = -max_value
-                #if dis2min <= dis_min:
-                    #dis_min = dis2min
-                    #min_y = y_mid
-                    #min_value = float(word_text_pure)
-                    #if word_text[0] == '-':
-                        #min_value = -min_value
-        #delta_min_max = max_value-min_value
-        #delta_mark = min_y - max_y
-        #delta_plot_y = y_min - y_max
-        #delta = delta_min_max/delta_mark
-        #if abs(min_y-y_min)/delta_plot_y > 0.1:
-            #print(abs(min_y-y_min)/delta_plot_y)
-            #print("Predict the lower bar")
-            #min_value = int(min_value + (min_y-y_min)*delta)
-
-    #return title2string, round(min_value, 2), round(max_value, 2)
-
 def find_closest_text(input_bbox, OCR_results):
     """
     输入：
@@ -329,7 +267,7 @@ if __name__ == "__main__":
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO
     )
-    image_file_path = "./img/test_img"
+    image_file_path = "./img/test_img.png"
     # 读取图像
     image = cv2.imread(image_file_path)
 
@@ -367,9 +305,10 @@ if __name__ == "__main__":
     min_val_bbox = [-1.0, -1.0, -1.0, -1.0]
     no_number_texts = filter_no_number(json_result['results'])
     texts = json_result['results']
-    for groups in annotations['test_img.png'][2]:
-        category = groups
-        if(category == '1'):
+    chart_type = "Pie"
+    for group in annotations['test_img.png'][2]:
+        category = group[-1]
+        if(category == 1):
             if(chart_type != "Bar"):
                 continue
             if(max_val == -1):
@@ -378,8 +317,8 @@ if __name__ == "__main__":
                 min_val = min_val_tmp['num']
                 max_val_bbox = max_val_tmp['bbox']
                 min_val_bbox = min_val_tmp['bbox']
-            xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, i['bbox']))
-            ys.append(find_closest_text(i['bbox'], no_number_texts))
+            xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, group[2:6]))
+            ys.append(find_closest_text(group[2:6], no_number_texts))
         elif(category == 2):
             if(chart_type != 'Line'):
                 continue
@@ -390,8 +329,8 @@ if __name__ == "__main__":
                 max_val_bbox = max_val_tmp['bbox']
                 min_val_bbox = min_val_tmp['bbox']
             j = 0
-            while(j < len(i['bbox'])):
-                cur_bbox = [i['bbox'][j], i['bbox'][j + 1]]
+            while(j < len(group[2:6])):
+                cur_bbox = [group[2:6][j], group[2:6][j + 1]]
                 xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, cur_bbox))
                 ys.append(find_closest_text(cur_bbox, texts))
                 j = j + 2
@@ -399,8 +338,8 @@ if __name__ == "__main__":
         elif(category == 3):
             if(chart_type != 'Pie'):
                 continue
-            xs.append(sector_area_ratio(i['bbox']))
-            ys.append(find_closest_text([(i['bbox'][0] + i['bbox'][2] + i['bbox'][4])/3,(i['bbox'][1] + i['bbox'][3] + i['bbox'][5])/3], no_number_texts))
+            xs.append(sector_area_ratio(group[0:6]))
+            ys.append(find_closest_text([group[0],group[1]], no_number_texts))
             continue
         elif(category == '5'):
             y_axis_title = find_closest_text(i['bbox'], no_number_texts)
@@ -414,3 +353,4 @@ if __name__ == "__main__":
     converted_table = converted_table + "Title: " + chart_title + " &"
     converted_table = converted_table + "X Axis Title: " + x_axis_title + " &"
     converted_table = converted_table + "Y Axis Title: " + y_axis_title + " &"
+    print(converted_table)

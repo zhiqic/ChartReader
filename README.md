@@ -105,18 +105,17 @@ torchrun \
         --text_column=Input \
         --summary_column=Output \
         --source_prefix="" \
-        --output_dir="./output/" \
+        --output_dir="./data/cache/t5_output" \
         --per_device_train_batch_size=8 \
         --per_device_eval_batch_size=16 \
         --predict_with_generate=True \
         --learning_rate=0.0001 \
         --num_beams=4 \
         --num_train_epochs=30 \
-        --save_steps=2000 \
+        --save_steps=10000 \
         --eval_steps=2000 \
         --evaluation_strategy=steps \
         --load_best_model \
-        --overwrite_output_dir \
         --max_source_length=1024
 ```
 
