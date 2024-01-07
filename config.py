@@ -5,16 +5,14 @@ class Config:
     def __init__(self):
         self._configs = {}
         self._configs["dataset"] = None
-        self._configs["sampling_function"] = "kp_sampling"
         self._configs["testing_function"] = None
         # Training Config
-        self._configs["snapshot"]          = 5000
         self._configs["stepsize"]          = 450000
         self._configs["learning_rate"]     = 0.00025
         self._configs["decay_rate"]        = 10
         self._configs["max_iter"]          = 500000
         self._configs["val_iter"]          = 100
-        self._configs["batch_size"]        = 1
+        self._configs["batch_size"]        = 2
         self._configs["snapshot_name"]     = None
         self._configs["pretrain"]          = None
         self._configs["opt_algo"]          = "adam"
@@ -47,10 +45,6 @@ class Config:
     @property
     def full(self):
         return self._configs
-
-    @property
-    def sampling_function(self):
-        return self._configs["sampling_function"]
 
     @property
     def testing_function(self):
@@ -111,10 +105,6 @@ class Config:
     @property
     def stepsize(self):
         return self._configs["stepsize"]
-
-    @property
-    def snapshot(self):
-        return self._configs["snapshot"]
 
     @property
     def val_iter(self):

@@ -1,8 +1,7 @@
 import torch.nn as nn
-import torch
 from .py_utils import convolution
 
-def make_pool_layer(input_dim: int) -> nn.Module:
+def make_pool_layer() -> nn.Module:
     return nn.Sequential()
 
 # 参数 kernel: 卷积核的大小。

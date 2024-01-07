@@ -1,4 +1,4 @@
-import logging
+
 import os
 import json
 import numpy as np
@@ -7,15 +7,9 @@ import copy
 from tqdm import tqdm
 from db.detection import DETECTION
 from config import system_configs
-from external.pycocotool.coco import COCO
-from external.pycocotool.cocoeval import COCOeval
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
-def convert_to_float(element):
-    if isinstance(element, (list, np.ndarray)):  # 如果是列表或数组
-        return [convert_to_float(e) for e in element]  # 递归处理
-    else:
-        return float(element)
-        
 class Chart(DETECTION):
     def __init__(self, db_config, split):
         super(Chart, self).__init__(db_config)
@@ -51,15 +45,14 @@ class Chart(DETECTION):
             [-0.56089297, 0.71832671, 0.41158938]
         ], dtype=np.float32)
         self._cat_ids = [
-            1, 2, 3, 4, 5, 6, 7
+            0, 1, 2
         ]
         self._classes = {
-            ind + 1: cat_id for ind, cat_id in enumerate(self._cat_ids)
+            ind: cat_id for ind, cat_id in enumerate(self._cat_ids)
         }
         self._coco_to_class_map = {
             value: key for key, value in self._classes.items()
         }
-
         self._cache_file = os.path.join(cache_dir, "{}_cache.pkl".format(self._dataset))
         if(not is_inference):
             self._load_data()
@@ -97,71 +90,76 @@ class Chart(DETECTION):
         cat_id = self._classes[cid]
         cat = self._coco.loadCats([cat_id])[0]
         return cat["name"]
-
+    
     def _extract_data(self):
         self._coco = COCO(self._label_file)
         self._cat_ids = self._coco.getCatIds()
-        #print(f"cat_ids: {self._cat_ids}")
         coco_image_ids = self._coco.getImgIds()
-        #print(f"coco_image_ids: {coco_image_ids}")
+        #print(coco_image_ids)
         self._image_ids = [
             self._coco.loadImgs(img_id)[0]["file_name"]
             for img_id in coco_image_ids
         ]
-        #print(f"image_ids: {self._image_ids}")
         self._detections = {}
         for ind, (coco_image_id, image_id) in enumerate(tqdm(zip(coco_image_ids, self._image_ids))):
-            #print(f"Current image id:{image_id}")
+            #print(f"ind: {ind}, image: {image_id}")
             image = self._coco.loadImgs(coco_image_id)[0]
+            #tmp_id = image["id"]
+            #print(f"image id: {tmp_id}")
             bboxes = []
             categories = []
             max_len = 0
             for cat_id in self._cat_ids:
-                #print(f"Current category id:{cat_id}")
+                category = self._coco_to_class_map[cat_id]
+                #print(f"category: {category}")
                 annotation_ids = self._coco.getAnnIds(imgIds=image["id"], catIds=cat_id)
                 annotations = self._coco.loadAnns(annotation_ids)
-                #print(f"Find {len(annotations)} annotations")
                 if(len(annotations) == 0):
                     continue
-                #print(f"Annotation_ids = {annotation_ids}")
-                category = self._coco_to_class_map[cat_id]
-                #print(f"Current category: {category}") 
-                if(cat_id == 2):
+                #if(annotation_ids):
+                    #print(f"annotation_ids: {annotation_ids}")
+                #else:
+                    #print("No annotation found")
+                if(category == 0):
+                    # bar
                     for annotation in annotations:
-                        #annotation_id = annotation["id"]
-                        #print(f"Annotation id: {annotation_id}")
+                        #print(annotation)
                         bbox = np.array(annotation["bbox"])
-                        bboxes.append(bbox)
-                        categories.append(category)
-                        max_len = max(max_len, len(bbox))
-                elif(cat_id == 3):
-                    for annotation in annotations:
-                        #annotation_id = annotation["id"]
-                        #print(f"Annotation id: {annotation_id}")
-                        bbox = np.array(annotation["bbox"])
-                        max_len = max(max_len, len(bbox))
-                        bboxes.append(bbox)
-                        categories.append(category)
-                else:
-                    for annotation in annotations:
-                        #annotation_id = annotation["id"]
-                        #print(f"Annotation id: {annotation_id}")
-                        bbox = np.array(annotation["bbox"])
-                        max_len = max(max_len, len(bbox))
                         bbox[[2, 3]] += bbox[[0, 1]]
                         bboxes.append(bbox)
                         categories.append(category)
+                        #max_len = max(max_len, len(bbox))
+                elif(category == 1):
+                    # line
+                    for annotation in annotations:
+                        #print(annotation)
+                        bbox = np.array(annotation["bbox"])
+                        bboxes.append(bbox)
+                        categories.append(category)
+                        max_len = max(max_len, len(bbox))
+                else:
+                    # pie
+                    for annotation in annotations:
+                       # print(annotation)
+                        bbox = np.array(annotation["bbox"])
+                        bboxes.append(bbox)
+                        categories.append(category)
+                        #max_len = max(max_len, len(bbox))
+            if(max_len):
                 for ind_bbox in range(len(bboxes)):
                     if len(bboxes[ind_bbox]) < max_len: bboxes[ind_bbox] = np.pad(bboxes[ind_bbox], (0, max_len - len(bboxes[ind_bbox])), 'constant', constant_values=(0, 0))
-            bboxes = np.array(bboxes, dtype=float)
             categories = np.array(categories, dtype=float)
             #print(f"Bboxes: {bboxes}")
             #print(f"Categories: {categories}")
+            bboxes = np.array(bboxes, dtype=float)
             if bboxes.size == 0 or categories.size == 0:
                 self._detections[image_id] = np.zeros((0, 5), dtype=np.float32)
             else:
-                #self._detections[image_id] = np.hstack((bboxes, categories[:, None]))
+                # Line
+                #if(categories[0] == 1):
                 self._detections[image_id] = (bboxes, categories)
+                #else:
+                self._detections[image_id] = (np.hstack((bboxes, categories[:, None])), categories)
                 #print(self._detections[image_id])
 
     def detections(self, ind):

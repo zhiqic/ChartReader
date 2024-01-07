@@ -2,8 +2,7 @@
     "system": {
         
         "batch_size": 2,
-        "sampling_function": "kp_sampling",
-        "testing_function" : "kp_detection",
+        "testing_function" : "test_kp_detection",
         "train_split": "trainchart",
         "val_split": "valchart",
         "test_split": "testchart",
@@ -16,25 +15,27 @@
         "opt_algo": "adam",
 
         "max_iter": 50000,
-        "stepsize": 20000,
-        "snapshot": 10000,
-
-        "data_dir": "",
-        "cache_dir": ""
+        "stepsize": 20000
     },
     
     "db": {
+        "rand_scales": null,
+        "rand_scale_min": 0.6,
+        "rand_scale_max": 1.4,
+        "rand_scale_step": 0.1,
+
+        "border": 128,
         "input_size": [511, 511],
         "output_sizes": [[128, 128]],
 
-        "gaussian_bump": true,
+        "gaussian_bump": false,
         "gaussian_iou": 0.3,
-        
+
+        "rand_crop": false,
         "rand_color": true,
-        
+
         "top_k": 100,
-        "categories": 8,
-        "nms_threshold": 0.5,
+        "categories": 3,
 
         "max_per_image": 100
     }

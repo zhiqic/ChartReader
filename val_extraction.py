@@ -1,4 +1,4 @@
-import logging
+
 import os
 import json
 import torch
@@ -8,13 +8,13 @@ matplotlib.use("Agg")
 import cv2
 from tqdm import tqdm
 from config import system_configs
-from nnet.py_factory import NetworkFactory
+from model_factory import Network
 from db.datasets import datasets
-import importlib
+from test_model import testing
 import json
 torch.backends.cudnn.benchmark = False
 
-def load_net(test_iter, config_name, data_dir, cache_dir, cuda_id=0):
+def load_net(test_iter, config_name, data_dir, cache_dir):
     print(f"Loading {config_name} model")
     config_file = os.path.join(system_configs.config_dir, config_name + ".json")
     with open(config_file, "r") as f:
@@ -41,29 +41,23 @@ def load_net(test_iter, config_name, data_dir, cache_dir, cuda_id=0):
     dataset = system_configs.dataset
     db = datasets[dataset](configs["db"], split)
     print("Building neural network...")
-    nnet = NetworkFactory(db)
+    nnet = Network()
     print("Loading parameters...")
-    nnet.load_params(test_iter)
+    nnet.load_model(test_iter)
     if torch.cuda.is_available():
-        print("GPU available. Switching to GPU.")
-        nnet.cuda(cuda_id)
-    nnet.eval_mode()
+        print("GPU available, switching to GPU...")
+        nnet.cuda(0)
     return db, nnet
 
 # model_type: 模型的类型，如 'KPDetection' 或 'KPGrouping'。
-# id_cuda: 指定是否使用 CUDA（通常用于 GPU 计算）。
 # data_dir: 数据目录的路径。
 # cache_dir: 缓存目录的路径。
 # iteration: 迭代次数，可能用于加载模型的特定版本。
-def pre_load_nets(model_type, id_cuda, data_dir, cache_dir, iteration):
+def pre_load_nets(model_type, data_dir, cache_dir, iteration):
     # 初始化一个空的字典 methods，用于存储预加载的模型和测试方法。
     methods = {}
     print(f"Preloading {model_type} model")
-    db, nnet = load_net(iteration, model_type, data_dir, cache_dir, id_cuda)
-    # 构建一个导入路径，该路径指向包含测试方法的模块。
-    path = f"testfile.test_{model_type}"
-    # 使用 importlib.import_module() 来动态导入该模块，并从中获取 testing 方法。
-    testing = importlib.import_module(path).testing
+    db, nnet = load_net(iteration, model_type, data_dir, cache_dir)
     methods[model_type] = [db, nnet, testing]
     return methods
 
@@ -82,21 +76,25 @@ def get_groups(keys, cens, group_scores):
     thres = 0.4
     groups = []
     group_scores_ = group_scores
-    for category in range (1, 8):
+    group_thres = 0.4
+    for category in range (3):
         keys_trim = [p for p in keys[category] if p[0] > thres]
         cens_trim = [p for p in cens[category] if p[0] > thres]
         #print(cens_trim)
-        print("Shape of group_scores:", group_scores.shape)
-        print("Length of cens_trim:", len(cens_trim))
-        print("Length of keys_trim:", len(keys_trim))
+        #print("Shape of group_scores:", group_scores.shape)
+        #print("Length of cens_trim:", len(cens_trim))
+        #print("Length of keys_trim:", len(keys_trim))
+        #从 group_scores_ 的第一个维度（通常是行）中获取前 len(cens_trim) 个元素。第二个维度（通常是列）中获取从 len(cens_trim) 列到 len(keys_trim)+len(cens_trim) 列的所有列。
         group_scores = group_scores_[:len(cens_trim), len(cens_trim) :len(keys_trim)+len(cens_trim)]
-        print(group_scores)
-        group_thres = 0.5
-        #print(keys_trim)
-        #print(cens_trim)
+        #print(f"group_scores: {group_scores_}")
+        #print(f"keys_trim: {keys_trim}")
+        #print(f"cens_trim: {cens_trim}")
         if len(cens_trim) == 0 or len(keys_trim) < 2: continue
         # 初始化组列表和组阈值。
-        if keys_trim[0][1] == 2:
+        #print(f"Type: {category}")
+        #print(cens_trim)
+        #print(keys_trim)
+        if category == 1:
             if len(cens_trim) == 0 or len(keys_trim) < 2: continue
             # 遍历中心点，并根据分数将关键点组织成组。
             for i in range(len(cens_trim)):
@@ -106,7 +104,7 @@ def get_groups(keys, cens, group_scores):
                 group += [cen[2],cen[3]]
                 for j in range(len(keys_trim)):
                     val = group_scores[i][j].item()
-                    if val > thres:
+                    if val > group_thres:
                         key = keys_trim[j]
                         group += [key[2],key[3]]
                         vals.append(val)
@@ -115,8 +113,7 @@ def get_groups(keys, cens, group_scores):
                 group.append(category)
                 groups.append(group)
             continue
-    
-        if keys_trim[0][1] == 1:
+        if category == 0:
             # 如果 cens_trim 为空或 keys_trim 长度小于2，则返回空列表。这可能是为了确保有足够的数据来继续处理。
             if len(cens_trim) == 0 or len(keys_trim) < 2: continue
             # 截取 group_scores 矩阵的一部分，可能与集中度和关键点有关。
@@ -124,12 +121,13 @@ def get_groups(keys, cens, group_scores):
             # 列索引：[len(cens_trim) : len(keys_trim) + len(cens_trim)] - 这部分选择了从 len(cens_trim) 到 len(keys_trim) + len(cens_trim) 的列，其中 keys_trim 可能表示关键点的一个子集。
             # 使用 PyTorch 的 topk 函数从 group_scores 中选择前2个最大值，并获取它们的值和索引。
             vals, inds = torch.topk(group_scores, 2)
-        elif keys_trim[0][1] == 3:
+        elif category == 2:
             if len(cens_trim) == 0 or len(keys_trim) < 3: continue
             vals, inds = torch.topk(group_scores, 3)
             group_thres = 0.1
         #print(vals)
         #print(cens_trim)    
+        #print(f"len cens_trim: {len(cens_trim)}, len vals: {len(vals)}")
         for i in range(len(cens_trim)):
             # 如果当前值大于组阈值的数量等于 vals 的第二维大小
             if (vals[i] > group_thres).sum().item() == vals.size(1):
@@ -170,9 +168,9 @@ def test(image_path, model_type):
             #print(keys)
             #print(centers)
             #print(group_scores)
-            print(len(keys))
-            print(len(centers))
-            print(len(group_scores))
+            #print(len(keys))
+            #print(len(centers))
+            #print(len(group_scores))
             groups = get_groups(keys, centers, group_scores)
             
             return (keys, centers, groups)
@@ -180,15 +178,9 @@ def test(image_path, model_type):
 def parse_args():
     parser = argparse.ArgumentParser(description="Test the ChartReader extraction part.")
 
-    parser.add_argument("--img_path",
-                        dest="img_path",
-                        help="Path to the images to be tested. Default is 'data/chart/images/val'.",
-                        default="data/chart/images/val",
-                        type=str)
-
     parser.add_argument("--save_path",
                         dest="save_path",
-                        help="Path to save the test results. Default is 'tmp/'.",
+                        help="Directory to save test results. Default is 'tmp/'.",
                         default="tmp/",
                         type=str)
 
@@ -198,21 +190,21 @@ def parse_args():
                         default="Grouping",
                         type=str)
 
-    parser.add_argument("--iter",
-                        dest="iter",
+    parser.add_argument("--trained_model_iter",
+                        dest="trained_model_iter",
                         help="Specify the number of iterations the model was trained for. Default is '50000'.",
                         default='50000',
                         type=str)
 
     parser.add_argument("--data_dir",
                         dest="data_dir",
-                        help="Path to the directory where the data is located. Default is 'data/extraction_data'.",
+                        help="Directory containing the data for evaluation. Default is 'data/extraction_data'.",
                         default="data/extraction_data",
                         type=str)
 
     parser.add_argument('--cache_path',
                         dest="cache_path",
-                        help="Specify the cache path. Default is 'data/chart/cache/'.",
+                        help="Directory to cache preprocessed data. Default is 'data/chart/cache/'.",
                         default="data/cache/",
                         type=str)
 
@@ -221,16 +213,17 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    methods = pre_load_nets(args.model_type, 0, args.data_dir, args.cache_path, args.iter)
-    save_path = os.path.join(args.save_path, args.model_type + args.iter + '.json')
+    methods = pre_load_nets(args.model_type, args.data_dir, args.cache_path, args.trained_model_iter)
+    save_path = os.path.join(args.save_path, args.model_type + args.trained_model_iter + '.json')
     # 初始化一个空字典，用于存储图片和它们的预测结果
     rs_dict = {}
     # 列出指定文件夹（args.img_path）内的所有图片
-    images = os.listdir(args.img_path)
+    images = os.listdir(methods[args.model_type][0]._image_dir)
     print(f"Predicting with {args.model_type} net")
     for img in tqdm(images):
-        path = os.path.join(args.img_path, img)
-        data = test(path, args.model_type)
-        rs_dict[img] = data
+        path = os.path.join(methods[args.model_type][0]._image_dir, img)
+        if(cv2.imread(path) is not None):
+            data = test(path, args.model_type)
+            rs_dict[img] = data
     with open(save_path, "w") as f:
         json.dump(rs_dict, f)
