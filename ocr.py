@@ -1,11 +1,25 @@
 from PIL import Image, ImageEnhance
-import pytesseract
 import os
-import logging
-from pytesseract import Output
-import cv2
+import time
 import json
+import cv2
 import math
+from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
+from msrest.authentication import CognitiveServicesCredentials
+
+def convert_to_table_format(xs):
+    """
+    Convert a list of items to a table format string.
+    Each item is separated by ' | ' except the last one, which is followed by ' &\n'.
+    """
+    table_str = ""
+    for i, item in enumerate(xs):
+        if i < len(xs) - 1:
+            table_str += str(item) + ' | '
+        else:
+            table_str += str(item) + ' '
+    return table_str
 
 def distance(x1, y1, x2, y2):
     """Calculate the distance between two points (x1, y1) and (x2, y2)."""
@@ -74,125 +88,6 @@ def sector_area(points):
     
     return area
 
-def ocr_with_tesseract(filename):
-    """ Use Tesseract to extract text from image.
-    :param filename: Your file path & name.
-    :param language: Language code to be used in OCR.
-                    List of available language codes can be found at https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
-                    Defaults to 'eng'.
-    :return: Result in plain text format.
-    """
-    #image = Image.open(filename)
-    #enh_con = ImageEnhance.Contrast(image)
-    #contrast = 2.0
-    #image = enh_con.enhance(contrast)
-    #image.save('OCR_temp3.png')
-    #raw_text = pytesseract.image_to_string(Image.open('OCR_temp.png'))
-    # print(raw_text)
-    #detected_language = detect(raw_text)
-    #print(detected_language)
-    detected_language = 'eng'
-    #enh_con = ImageEnhance.Contrast(image)
-    #contrast = 2.0
-    #image = enh_con.enhance(contrast)
-    #image.save('OCR_temp.png')
-    #image = cv2.imread('OCR_temp.png')
-    image = cv2.imread(filename)
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # 二值化
-    binary_image = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-    #binary_image = cv2.adaptiveThreshold(gray_image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    # 降噪
-    denoised_image = cv2.fastNlMeansDenoising(binary_image, None, 30, 7, 21)
-    cv2.imwrite('denoised.png', denoised_image)
-    cv2.imwrite('binary.png', binary_image)
-    cv2.imwrite('gray.png', gray_image)
-    #scale_factor = 2
-    #scaled_image = cv2.resize(denoised_image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)))
-    # image = Image.open('denoised.png')
-    # enh_con = ImageEnhance.Contrast(image)
-    # contrast = 2.0
-    # image = enh_con.enhance(contrast)
-    # image.save('enhanced.png')
-    #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    #dilated_image = cv2.dilate(scaled_image, kernel, iterations=1)
-    #cv2.imwrite('dilated.png', dilated_image)
-    #eroded_image = cv2.erode(dilated_image, kernel, iterations=1)
-    #cv2.imwrite('eroded.png', eroded_image)
-    result = pytesseract.image_to_data(denoised_image, lang=detected_language, config='--psm 12', output_type=Output.DICT)
-    #os.remove('OCR_temp.png')
-    return result
-def filter_no_number(OCR_results):
-    """
-    输入：
-    - OCR_results: 一个字典列表，其中每个字典都有 'text' 和 'bbox' 两个键
-
-    输出：一个新的字典列表，其中不包含 text 包含数字的项
-    """
-    
-    # 使用列表推导式来过滤掉 text 包含数字的项
-    no_number_textss = [r for r in OCR_results if not any(char.isdigit() for char in r['text'])]
-    
-    return no_number_textss
-
-def data_range_estimation(Right, Bottom, OCR_results):
-    # 提取符合条件的候选项
-    for r in OCR_results:
-        r['text'] = r['text'].replace(",", "")
-    candidates = [r for r in OCR_results if r['bbox'][0] + r['bbox'][2] < Right - 4 and r['text'].isdigit()]
-
-    # 找到最靠近 (Left, Bottom) 的候选项作为 rmin
-    filtered_candidates = [r for r in candidates if float(r['text']) != 0]
-    rmin = min(candidates, key=lambda r: abs(r['bbox'][0]) + abs(r['bbox'][1] - Bottom))
-
-    # 找到最靠近 (Left, Top) 的候选项作为 rmax
-    rmax = min(filtered_candidates, key=lambda r: abs(r['bbox'][0]) + abs(r['bbox'][1]))
-
-    # 将文本转换为数字
-    rmin['num'] = float(rmin['text'])
-    rmax['num'] = float(rmax['text'])
-
-    # 计算Y轴的刻度
-    #Yscale = (rmin['num'] - rmax['num']) / (rmax['bbox'][1] - rmin['bbox'][1])
-
-    # 计算Y轴的最小值
-    #Ymin = rmin['num'] - Yscale * ((Bottom - rmin['t'] + rmin['b']) / 2)
-
-    ## 计算Y轴的最大值
-    #Ymax = rmax['num'] + Yscale * ((rmax['t'] + rmax['b']) / 2 - Top)
-
-    return rmax, rmin
-
-def find_bounding_boxes(top_left_points, bottom_right_points, is_vertical=True, threshold=0.4):
-    # γ 和 ν 权重的定义，取决于是垂直条还是水平条
-    gamma = 1 if is_vertical else 0
-    nu = 0 if is_vertical else 1
-    
-    bounding_boxes = []
-
-    # 遍历每个顶部左侧点
-    for ptl in top_left_points:
-        # 过滤概率低于阈值的点
-        if ptl['prob'] < threshold:
-            continue
-            
-        # 找到底部右侧点，这些点在顶部左侧点的右侧（仅适用于垂直条形图）
-        candidates = [pbr for pbr in bottom_right_points if pbr['prob'] >= threshold and (pbr['x'] > ptl['x'] or not is_vertical)]
-
-        # 根据定义的距离度量找到最近的底部右侧点
-        closest_pbr = min(candidates, key=lambda pbr: gamma * abs(pbr['x'] - ptl['x']) + nu * abs(pbr['y'] - ptl['y']))
-
-        # 创建边界框并添加到列表中
-        bounding_box = {
-            'top_left': (ptl['x'], ptl['y']),
-            'bottom_right': (closest_pbr['x'], closest_pbr['y'])
-        }
-        bounding_boxes.append(bounding_box)
-
-    return bounding_boxes
-
 def find_closest_text(input_bbox, OCR_results):
     """
     输入：
@@ -215,25 +110,33 @@ def find_closest_text(input_bbox, OCR_results):
     OCR_results.remove(closest_result)
     return closest_result['text']
 
-def print_items(xs):
-    for i, item in enumerate(xs):
-        if i < len(xs) - 1:
-            print(item, end=' | ')
-        else:
-            print(item, end=' &\n')
+def is_decimal(s):
+    try:
+        float(s)  # Try converting the string to a float
+        return True
+    except ValueError:
+        return False  # Return False if the conversion fails
 
-def convert_to_table_format(xs):
-    """
-    Convert a list of items to a table format string.
-    Each item is separated by ' | ' except the last one, which is followed by ' &\n'.
-    """
-    table_str = ""
-    for i, item in enumerate(xs):
-        if i < len(xs) - 1:
-            table_str += str(item) + ' | '
-        else:
-            table_str += str(item) + ' &\n'
-    return table_str
+def data_range_estimation(Right, Bottom, OCR_results):
+    # 提取符合条件的候选项
+
+    for r in OCR_results:
+        r['text'] = r['text'].replace(",", "")
+    #print(f"OCR_results :{OCR_results}")
+    #print(f"Right: {Right}, Bottom: {Bottom}")
+    candidates = [r for r in OCR_results if r['bbox'][0] + r['bbox'][2] < Right - 4 and is_decimal(r['text'])]
+    #print(f"candidates: {candidates}")
+    # 找到最靠近 (Left, Bottom) 的候选项作为 rmin
+    filtered_candidates = [r for r in candidates if float(r['text']) != 0]
+    rmin = min(candidates, key=lambda r: abs(r['bbox'][0]) + abs(r['bbox'][1] - Bottom))
+
+    # 找到最靠近 (Left, Top) 的候选项作为 rmax
+    rmax = min(filtered_candidates, key=lambda r: abs(r['bbox'][0]) + abs(r['bbox'][1]))
+
+    # 将文本转换为数字
+    rmin['num'] = float(rmin['text'])
+    rmax['num'] = float(rmax['text'])
+    return rmax, rmin
 
 def calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, val_bbox):
     """
@@ -251,7 +154,7 @@ def calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, val_bbox):
     max_val_y = max_val_bbox[1]
     min_val_y = min_val_bbox[1]
     val_y = val_bbox[1]
-
+    #print(f"max_val: {max_val}, min_val: {min_val}")
     # 计算 y 轴上的比例因子
     y_scale = (max_val - min_val) / (min_val_y - max_val_y)
     #print(max_val, min_val)
@@ -261,17 +164,139 @@ def calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, val_bbox):
 
     return val
 
-if __name__ == "__main__":
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO
-    )
-    image_file_path = "./img/test_img.png"
-    # 读取图像
-    image = cv2.imread(image_file_path)
+def filter_no_number(OCR_results):
 
-    # 获取图像的高度和宽度
+    # 使用列表推导式来过滤掉 text 包含数字的项
+    no_number_textss = [r for r in OCR_results if not any(char.isdigit() for char in r['text'])]
+    
+    return no_number_textss
+
+def delete_y_label(min_val_tmp, texts):
+    # 计算min_val_tmp的右上角和右下角坐标
+    x_min, y_min, w, h = min_val_tmp
+    top_right_x = x_min + w
+    top_right_y = y_min
+    bottom_right_x = x_min + w
+    bottom_right_y = y_min + h
+
+    # 新建一个列表来保存需要保留的矩形框
+    filtered_texts = []
+
+    for bbox in texts:
+        x, y, w, h = bbox['bbox']
+        # 计算当前矩形框的右上角和右下角坐标
+        bbox_top_right_x = x + w
+        bbox_top_right_y = y
+        bbox_bottom_right_x = x + w
+        bbox_bottom_right_y = y + h
+
+        # 检查坐标差异是否在规定范围内
+        if not (abs(top_right_x - bbox_top_right_x) <= 5 and abs(top_right_y - bbox_top_right_y) <= 5 and
+                abs(bottom_right_x - bbox_bottom_right_x) <= 5 and abs(bottom_right_y - bbox_bottom_right_y) <= 5):
+            # 如果不在规定范围内，则保留这个矩形框
+            filtered_texts.append(bbox)
+
+    return filtered_texts
+def convert_to_xywh(bounding_box):
+    # 提取所有x和y坐标
+    x_coords = bounding_box[0::2]
+    y_coords = bounding_box[1::2]
+
+    # 计算最小矩形的左上角坐标
+    x_min = min(x_coords)
+    y_min = min(y_coords)
+
+    # 计算宽度和高度
+    w = max(x_coords) - x_min
+    h = max(y_coords) - y_min
+
+    return x_min, y_min, w, h
+
+def ocr_with_azure():
+    subscription_key = os.environ["VISION_KEY"]
+    endpoint = os.environ["VISION_ENDPOINT"]
+
+    computervision_client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
+
+    image = Image.open("./test_img.png")
+    enh_con = ImageEnhance.Contrast(image)
+    contrast = 2.0
+    image = enh_con.enhance(contrast)
+    # image = image.convert('L')
+    # image = image.resize((800, 800))
+    image.save('OCR_temp.png')
+    image = open("./OCR_temp.png", "rb")
+
+    read_response = computervision_client.read_in_stream(image,  raw=True)
+
+    read_operation_location = read_response.headers["Operation-Location"]
+    operation_id = read_operation_location.split("/")[-1]
+
+    while True:
+        read_result = computervision_client.get_read_result(operation_id)
+        if read_result.status not in ['notStarted', 'running']:
+            break
+        time.sleep(1)
+
+    tesseract_format = {
+        'left': [],
+        'top': [],
+        'width': [],
+        'height': [],
+        'text': []
+    }
+    image = cv2.imread("./test_img.png")
+    if read_result.status == OperationStatusCodes.succeeded:
+        for text_result in read_result.analyze_result.read_results:
+            for line in text_result.lines:
+                # Populate the dictionary
+                tesseract_format['text'].append(line.text)
+                x, y, w, h = convert_to_xywh(line.bounding_box)
+                print(line.bounding_box)
+                tesseract_format['left'].append(x)
+                tesseract_format['top'].append(y)
+                tesseract_format['width'].append(w)
+                tesseract_format['height'].append(h)
+    return tesseract_format
+
+def find_topmost_bbox(ocr_results):
+    if not ocr_results:
+        return None
+
+    # Sort the OCR results by the y coordinate of the top-left corner
+    sorted_results = sorted(ocr_results, key=lambda r: r['bbox'][1])
+
+    # The first element after sorting will be the topmost
+    topmost_bbox = sorted_results[0]
+
+    return topmost_bbox
+
+def find_bottommost_bbox(ocr_results):
+    if not ocr_results:
+        return None
+
+    # Sort by the y coordinate of the bottom-right corner
+    sorted_results = sorted(ocr_results, key=lambda r: r['bbox'][3], reverse=True)
+
+    # The first element is the bottommost
+    bottommost_bbox = sorted_results[0]
+
+    return bottommost_bbox
+
+def find_leftmost_bbox(ocr_results):
+    if not ocr_results:
+        return None
+
+    # Sort by the x coordinate of the top-left corner
+    sorted_results = sorted(ocr_results, key=lambda r: r['bbox'][0])
+
+    # The first element is the leftmost
+    leftmost_bbox = sorted_results[0]
+
+    return leftmost_bbox
+
+def Ocr(chart_type):
+    image = cv2.imread("./test_img.png")
     height, width, _ = image.shape
 
     # 计算坐标
@@ -280,77 +305,109 @@ if __name__ == "__main__":
     bottom = height - 1
     right = width - 1
     json_result = {"results":[]}
-    result = ocr_with_tesseract(image_file_path)
+    result = ocr_with_azure()
     for i in range(len(result['text'])):
         #if int(result['conf'][i]) > 0:
         text = result['text'][i]
         if(text.strip() != ''):
             bbox_info=(result['left'][i], result['top'][i], result['width'][i], result['height'][i])
             json_result['results'].append({"text":text, "bbox": bbox_info})
-            print(f"文字: {result['text'][i]}, 边界框: ({result['left'][i]}, {result['top'][i]}, {result['width'][i]}, {result['height'][i]}), 置信度:{result['conf'][i]}")
-    image = cv2.imread(image_file_path)
+            print(f"文字: {result['text'][i]}, 边界框: ({result['left'][i]}, {result['top'][i]}, {result['width'][i]}, {result['height'][i]})")
+            x, y, w, h = result['left'][i], result['top'][i], result['width'][i], result['height'][i]
+            #print(x, y, w, h)
+            # 使用OpenCV绘制矩形
+            cv2.rectangle(image, (int(x), int(y)), (int(x + w), int(y + h)), (0, 255, 0), 2)
     cv2.imwrite('output.png', image)
-    with open(os.getcwd() + "/evaluation/KPGrouping50000.json", "r") as f:
+    image = cv2.imread("./test_img.png")
+    with open(os.getcwd() + "/evaluation/KPGroupingbest_full.json", "r") as f:
         annotations = json.load(f)
-    y_axis_title = 'None'
-    x_axis_title = 'None'
-    chart_type = 'None'
-    chart_title = 'None'
     xs = []
     ys = []
     max_val = -1.0
     min_val = -1.0
-    val_scale = -1.0
     max_val_bbox = [-1.0, -1.0, -1.0, -1.0]
     min_val_bbox = [-1.0, -1.0, -1.0, -1.0]
     no_number_texts = filter_no_number(json_result['results'])
     texts = json_result['results']
-    chart_type = "Pie"
-    for group in annotations['test_img.png'][2]:
+    if(chart_type != 'pie'):
+        y_axis_title = find_leftmost_bbox(no_number_texts)['text']
+        x_axis_title = find_bottommost_bbox(no_number_texts)['text']
+    else:
+        y_axis_title = "None"
+        x_axis_title = "None"
+
+    chart_title = find_topmost_bbox(no_number_texts)['text']
+    #print(json_result['results'])
+    sorted_groups = sorted(annotations['test_img.png'][2], key=lambda group: group[0])
+    # 收集要删除的元素索引
+    indexes_to_remove = set()
+
+    for i in range(len(sorted_groups) - 1):
+        current_group = sorted_groups[i]
+        next_group = sorted_groups[i + 1]
+    
+        # 检查第一位和第二位的差值是否都小于1
+        if abs(current_group[0] - next_group[0]) < 5 and abs(current_group[1] - next_group[1]) < 5:
+            # 根据第二位的大小决定要删除的元素
+            if current_group[1] < next_group[1]:
+                indexes_to_remove.add(i)
+            else:
+                indexes_to_remove.add(i + 1)
+
+    # 反向删除标记的元素
+    for index in sorted(indexes_to_remove, reverse=True):
+        del sorted_groups[index]
+    for group in sorted_groups:
         category = group[-1]
-        if(category == 1):
-            if(chart_type != "Bar"):
+        #print(category)
+        if(category == 0):
+            if(chart_type != "vbar_categorical"):
                 continue
             if(max_val == -1):
-                max_val_tmp, min_val_tmp = data_range_estimation(right, bottom, json_result['results'])
+                max_val_tmp, min_val_tmp = data_range_estimation(right, bottom, texts)
                 max_val = max_val_tmp['num']
                 min_val = min_val_tmp['num']
                 max_val_bbox = max_val_tmp['bbox']
                 min_val_bbox = min_val_tmp['bbox']
+                print(f"max_val: {max_val_tmp}")
+                print(f"min_val: {min_val_tmp}")
+                texts = delete_y_label(min_val_bbox, texts)
+                texts = delete_y_label(max_val_bbox, texts)
+            if(group[2] > group[4] and group[3] > group[5]):
+                group[2], group[4] = group[4], group[2]
+                group[3], group[5] = group[5], group[3]
             xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, group[2:6]))
-            ys.append(find_closest_text(group[2:6], no_number_texts))
-        elif(category == 2):
-            if(chart_type != 'Line'):
+            print(f"group: {group}")
+            ys.append(find_closest_text(group[0:2], texts))
+        elif(category == 1):
+            if(chart_type != 'line'):
                 continue
             if(max_val == -1):
-                max_val_tmp, min_val_tmp = data_range_estimation(right, bottom, json_result['results'])
+                max_val_tmp, min_val_tmp = data_range_estimation(right, bottom, texts)
                 max_val = max_val_tmp['num']
                 min_val = min_val_tmp['num']
                 max_val_bbox = max_val_tmp['bbox']
                 min_val_bbox = min_val_tmp['bbox']
-            j = 0
-            while(j < len(group[2:6])):
-                cur_bbox = [group[2:6][j], group[2:6][j + 1]]
-                xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, cur_bbox))
-                ys.append(find_closest_text(cur_bbox, texts))
-                j = j + 2
+                print(f"max_val: {max_val_tmp}")
+                print(f"min_val: {min_val_tmp}")
+                texts = delete_y_label(min_val_bbox, texts)
+                texts = delete_y_label(max_val_bbox, texts)
+                print(f"texts: {texts}")
+            for k in range(1, len(group[:-1])//2):
+                key_in_group = group[2*k:2*k+2]
+                xs.append(calculate_bar_val(max_val, max_val_bbox, min_val, min_val_bbox, key_in_group))
+                ys.append(find_closest_text(key_in_group, texts))
             continue
-        elif(category == 3):
-            if(chart_type != 'Pie'):
+        elif(category == 2):
+            if(chart_type != 'pie'):
                 continue
             xs.append(sector_area_ratio(group[0:6]))
             ys.append(find_closest_text([group[0],group[1]], no_number_texts))
             continue
-        elif(category == '5'):
-            y_axis_title = find_closest_text(i['bbox'], no_number_texts)
-        elif(category == '6'):
-            chart_title = find_closest_text(i['bbox'],no_number_texts)
-        elif(category == '7'):
-            x_axis_title = find_closest_text(i['bbox'],no_number_texts)
-    converted_table = convert_to_table_format(xs)
-    converted_table += convert_to_table_format(ys)
-    converted_table = converted_table + "Chart Type: " + chart_type + " &"
-    converted_table = converted_table + "Title: " + chart_title + " &"
-    converted_table = converted_table + "X Axis Title: " + x_axis_title + " &"
-    converted_table = converted_table + "Y Axis Title: " + y_axis_title + " &"
-    print(converted_table)
+    converted_table =  convert_to_table_format(ys) + "& "
+    converted_table += convert_to_table_format(xs)
+    converted_table = converted_table + "Chart Type: " + chart_type + " "
+    converted_table = converted_table + "Title: " + chart_title + " "
+    converted_table = converted_table + "x_axis_title: " + x_axis_title + " "
+    converted_table = converted_table + "y_axis_title: " + y_axis_title + " "
+    return converted_table

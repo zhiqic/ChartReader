@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import logging
+
 class BASE():
     def __init__(self):
         self._split = None
@@ -81,6 +81,6 @@ class BASE():
             self._data_rng = np.random.RandomState(os.getpid())
 
         if not quiet:
-            logging.info("Shuffling...")
+            print("Shuffling...")
         rand_perm = self._data_rng.permutation(len(self._db_inds))
         self._db_inds = self._db_inds[rand_perm]

@@ -8,7 +8,7 @@ class MergeUp(nn.Module):
     def forward(self, up1, up2):
         return up1 + up2
 
-def make_merge_layer(dim):
+def make_merge_layer():
     return MergeUp()
 # 最大池化是一种下采样技术，用于减小特征映射的尺寸。它通过从每个固定大小的窗口中选择最大值，并将其作为新的特征映射的值来工作。这个特定的最大池化层使用2x2的窗口大小和步长2。
 # 参数
@@ -19,7 +19,7 @@ def make_merge_layer(dim):
 # 减小尺寸：通过减小特征映射的高度和宽度，降低了后续层的计算复杂性。
 # 增加感受野：增加了网络对输入图像中更大区域的感知能力。
 # 不变性：通过选择窗口中的最大值，最大池化提供了对小的平移、旋转和缩放的不变性。
-def make_pool_layer(dim):
+def make_pool_layer():
     return nn.MaxPool2d(kernel_size=2, stride=2)
 
 # 上采样是一种增加特征映射尺寸的技术。它被用于将低分辨率特征映射转换为高分辨率，从而能够在后续层中捕获更精细的信息。这个特定的上采样层使用了比例因子2，这意味着它将输入特征映射的高度和宽度放大2倍。
@@ -65,11 +65,7 @@ def _gather_feat(feat, ind, mask=None):
     # 使用 unsqueeze(2) 在索引张量的第三个维度上添加一个额外的维度，使其形状变为 (batch_size, num_indices, 1)。
     # 使用 expand 方法将其展开为与特征张量的第三个维度相同的大小，从而得到形状为 (batch_size, num_indices, dim) 的张量。
     ind  = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
-    #for i, tensor in enumerate(ind):
-        #print(f"The shape of tensor at ind index {i} is {tensor.shape}")
-    #for i, tensor in enumerate(feat):
-        #print(f"The shape of tensor at feat index {i} is {tensor.shape}")
-        # 检查 ind 张量中的最小和最大值
+    # 检查 ind 张量中的最小和最大值
     min_val = torch.min(ind)
     max_val = torch.max(ind)
 
@@ -128,10 +124,6 @@ def _transpose_and_gather_feat(feat, ind):
     # 这里，-1 表示该维度的大小由其他维度的大小自动推断。
     feat = feat.view(feat.size(0), -1, feat.size(3))
     # 调用之前定义的 _gather_feat 函数，使用索引张量 ind 从重新整形的特征张量中收集特定的特征。
-    #print("Shape of feat:", feat.shape)
-    #print("Shape of ind:", ind.shape)
-    #print("Max value in ind:", ind.max())
-    #print("Min value in ind:", ind.min())
     feat = _gather_feat(feat, ind)
     return feat
 
@@ -155,7 +147,7 @@ def _topk(scores, K=20):
     topk_xs   = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
-def _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, option="pure"):
+def _decode_detection_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, option="pure"):
     batch, cat, height, width = tl_heat.size()
     
     # 通过Sigmoid激活函数将热图的值限制在0到1之间。
@@ -198,18 +190,18 @@ def _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr, K=100, kernel=1, o
     else:
         return detections_tl, detections_br, tl_inds, br_inds, tl_scores, br_scores_
     
-def _decode_pure(
+def _decode_detection(
         tl_heat, br_heat, tl_regr, br_regr,
         K=100, kernel=1
 ):
-    return _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr,
+    return _decode_detection_or_group(tl_heat, br_heat, tl_regr, br_regr,
         K, kernel, "pure")
 
 def _decode_group(
         tl_heat, br_heat, tl_regr, br_regr,
         K=100, kernel=1
 ):
-    return _decode_pure_or_group(tl_heat, br_heat, tl_regr, br_regr,
+    return _decode_detection_or_group(tl_heat, br_heat, tl_regr, br_regr,
         K, kernel, "group")
 
 # 这个函数定义了一个负采样损失（negative loss），通常用于二分类问题，特别是在目标检测和图像分割任务中，其中正样本（目标）和负样本（背景）的数量可能会极度不平衡。
@@ -217,26 +209,14 @@ def _decode_group(
 def _neg_loss(preds, gt, lambda_, lambda_b):
     # 找到地面真值标签中所有正样本（目标）的索引。
     pos_inds = gt.eq(1)
-    #print(f"pos inds: {pos_inds}")
     # 找到地面真值标签中所有负样本（背景）的索引。
     neg_inds = gt.lt(1)
-    #print(f"neg inds: {neg_inds}")
-    #for i, tensor in enumerate(pos_inds):
-        #print(f"The shape of tensor at pos inds index {i} is {tensor.shape}")
-    #for i, tensor in enumerate(neg_inds):
-        #print(f"The shape of tensor at neg inds index {i} is {tensor.shape}")
-    #for i, tensor in enumerate(gt):
-        #print(f"The shape of tensor at gt index {i} is {tensor.shape}")
     # 计算负样本的权重，通常用于平衡正样本和负样本之间的不平衡。
     neg_weights = torch.pow(1 - gt[neg_inds], lambda_)
     loss = 0
     for pred in preds:
-        #print("Shape of pred:", pred.shape)
-        #print("Shape of pos_inds:", pos_inds.shape)
-        # logging.info(pred.shape)
         pos_pred = pred[pos_inds]
         neg_pred = pred[neg_inds]
-        # logging.info(pos_pred)
         # 计算正样本的损失，使用对数损失和权重。
         pos_loss = torch.log(pos_pred) * torch.pow(1 - pos_pred, lambda_b)
         # 计算负样本的损失，使用对数损失、权重和先前计算的负权重。

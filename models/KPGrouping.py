@@ -1,12 +1,12 @@
 from .py_utils import kp_group, GroupingLoss, _neg_loss, residual
-from .model_utils import make_pool_layer, make_hg_layer
+from .model_utils import make_hg_layer, make_pool_layer
 
 class Model(kp_group):
-    def __init__(self, db):
+    def __init__(self):
         n = 5
         dims = [256, 256, 384, 384, 384, 512]
         modules = [2, 2, 2, 2, 2, 4]
-        out_dim = 8
+        out_dim = 3
 
         super(Model, self).__init__(
             n, 2, dims, modules, out_dim,

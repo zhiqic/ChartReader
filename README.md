@@ -1,17 +1,27 @@
-# ChartLLM
+# ChartLLM: Unlocking the Multimodal Potential of LLMs for Chart Comprehension
 
-ChartLLM is a sophisticated implementation for the interpretation and understanding of various types of data charts.
+## Highlights
 
-## System Requirements
+- 🏅 Easily handle unseen chart types by simply adding more training data 
+- 🎊 Transformer architecture automatically infers rules from center/key points
+- 🏵️ Unified framework for all chart and table understanding tasks
+
+Our solution first uses a specialized detection module built on Multi-Scale [Hourglass Networks](https://arxiv.org/abs/1603.06937) to locate and segment chart components like axes, legends and plot areas in a unified manner without hardcoded assumptions. We then employ a structured Transformer encoder to capture spatial, semantic and stylistic relationships between the detected components. This allows grouping relevant elements into a structured tabular intermediate representation of the chart layout and content. Finally, we fine-tune the state-of-the-art [T5](https://arxiv.org/abs/1910.10683) text-to-text transformer on this representation using special tokens to associate chart details with free-form questions across a variety of analytical tasks.
+
+![Example Interface](./example_interface.png)
+
+A simple UI interface is also available for demostrating our model, please visit :
+
+## Quickstart
+
+### System Requirements
 
 - GPU-enabled machine
 - CUDA toolkit version = 10.0
 - Python 3.11
 - GCC 4.9.2 or above
   
-## Installation
-
-### Prerequisites
+### Installation
 
 Ensure [Anaconda](https://anaconda.org) is installed on your system. Use the provided package list to create an Anaconda environment:
 
@@ -20,18 +30,8 @@ conda env create -f requirements.yaml
 conda activate ChartLLM
 ```
 
-### Compiling NMS
 
-Compile the NMS code required for the chart data extraction part, which are originally from [Faster R-CNN](https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/nms/cpu_nms.pyx) and [Soft-NMS](https://github.com/bharatsingh430/soft-nms/blob/master/lib/nms/cpu_nms.pyx).
-
-```shell
-cd external
-make
-```
-
-### Installing MS COCO APIs
-
-The Microsoft COCO APIs are also required for the functioning of the chart data extraction part.
+The Microsoft COCO APIs are required for the functioning of data loading part of the chart data extraction part, given that the original EC400K dataset is in COCO format.
 
 ```shell
 mkdir data
@@ -41,23 +41,19 @@ cd coco/PythonAPI
 make
 ```
 
-## Data Preparation
+### Data Preparation
 
-Download the modified EC400K dataset from this link 
+Download the modified EC400K dataset from this [link](https://pan.baidu.com/s/1myO8-SAmLa5NVsHzmBSC5w?pwd=54tb)
 
-The annotation contains three parts. 
-
-The first part `images` containes the chart image information, which has 4 labels for each image: `file_name`, `width`, `height`, and `id`. 
-
-The second part `annotations` contains the chart components annotation information, which has 5 labels for each annotation: `image_id`, `category_id`,   `bbox`, `area`, `id`.
-
-- `image_id`: the `id` of chart image which the annotation belongs to
-- `category_id`: the type of the component, where 1 denotes bars in bar charts, 2 denotes lines in line charts, 3 denotes pies in pie charts, 4 denotes the legends, 5 denotes the title of the values axes, 6 denotes the title of the entire chart, 7 denotes the title of the category axes.
-- `bbox`: the points showing the bounding box of the component. For lines in line charts, they are the data points for a line (`[d_1_x, d_1_y, …., d_n_x, d_n_y]`). For pies in pie charts, they are the three critical points for a sector of the pie `[center_x, center_y, edge_1_x, edge_1_y, edge_2_x, edge_2_y]`. For bars in bar charts, and other types of components, they are the x-coordinate of the top-left corner of the box, the y-coordinate of the top-left corner of the box, the width of the box (horizontal dimension), and the height of the box (vertical dimension).
-- `area`: the area of the chart component.
-- `id`: the unique identifier of each annotation.
-
-The third part `categories` provide a further reference of the `categories` in the `annotations` part with 3 labels for each component category: `supercategory`, `id`, and `name`. In which categories 1 to 3 belong to supercategory "MainComponent" and other categories belong to supercategory "OtherComponents".
+> The annotation contains three parts. 
+> The first part `images` containes the chart image information, which has 4 labels for each image: `file_name`, `width`, `height`, and `id`. 
+> The second part `annotations` contains the chart components annotation information, which has 5 labels for each annotation: `image_id`, `category_id`,   `bbox`, `area`, `id`.
+> - `image_id`: the `id` of chart image which the annotation belongs to
+> - `category_id`: the type of the component, where 1 denotes bars in vbar_categorical charts, 2 denotes lines in line charts, 3 denotes pies in pie charts, 4 denotes the legends, 5 denotes the title of the values axes, 6 denotes the title of the entire chart, 7 denotes the title of the category axes.
+> - `bbox`: the points showing the bounding box of the component. For lines in line charts, they are the data points for a line (`[d_1_x, d_1_y, …., d_n_x, d_n_y]`). For pies in pie charts, they are the three critical points for a sector of the pie `[center_x, center_y, edge_1_x, edge_1_y, edge_2_x, edge_2_y]`. For bars in vbar_categorical charts, and other types of components, they are the x-coordinate of the top-left corner of the box, the y-coordinate of the top-left corner of the box, the width of the box (horizontal dimension), and the height of the box (vertical dimension).
+> - `area`: the area of the chart component.
+> - `id`: the unique identifier of each annotation.
+> The third part `categories` provide a further reference of the `categories` in the `annotations` part with 3 labels for each component category: `supercategory`, `id`, and `name`. In which categories 1 to 3 belong to supercategory "MainComponent" and other categories belong to supercategory "OtherComponents".
 
 ## Training 
 
@@ -70,10 +66,8 @@ To train the chart data extraction model, use the `train_extraction.py` script. 
 ```shell
 python train_extraction.py \
     --cfg_file KPDetection \
-    --data_dir "data/extraction_data/" \
-    --cache_path "data/cache/" \
-    --pretrain_model "KPDetection_20000.pkl" \
-    --iter 20000
+    --data_dir "/root/autodl-tmp/bar/" \
+    --cache_path "/root/autodl-tmp/cache/"
 ```
 
 Then you can use the pretrained KP Detection model to train the KP grouping model, for example:
@@ -81,10 +75,9 @@ Then you can use the pretrained KP Detection model to train the KP grouping mode
 ```shell
 python train_extraction.py \
     --cfg_file KPGrouping \
-    --data_dir "data/extraction_data/" \
-    --pretrain_model "KPGrouping_20000.pkl" \
-    --cache_path "data/cache/" \
-    --iter 20000
+    --data_dir "/root/autodl-tmp/component_data/" \
+    --pretrained_model "KPDetection_best.pkl" \
+    --cache_path "/root/autodl-tmp/cache/" 
 ```
 
 ### Chart Question Answering Part
@@ -99,13 +92,13 @@ torchrun \
         --do_train \
         --do_eval \
         --do_predict \
-        --train_file="./data/qa_data/train.csv" \
-        --validation_file="./data/qa_data/val.csv" \
-        --test_file="./data/qa_data/test.csv" \
+        --train_file="/root/autodl-tmp/qa_data/train.csv" \
+        --validation_file="/root/autodl-tmp/qa_data/val.csv" \
+        --test_file="/root/autodl-tmp/qa_data/test.csv" \
         --text_column=Input \
         --summary_column=Output \
         --source_prefix="" \
-        --output_dir="./data/cache/t5_output" \
+        --output_dir="/root/autodl-tmp/cache/t5_output" \
         --per_device_train_batch_size=8 \
         --per_device_eval_batch_size=16 \
         --predict_with_generate=True \
@@ -121,32 +114,24 @@ torchrun \
 
 ## Evaluation
 
-### Chart Data Extraction Part
+To use the demo UI interface, use the `demo.py` script, ensure you have replaced all the directories in the script with correct values. 
 
-To test batches of data directly, use the `val.py` script:
-
-```shell
-python val_extraction.py \
-    --img_path <path_to_test_images> \
-    --save_path <path_to_save_test_results> \
-    --model_type <type_of_model_to_be_tested(KPDetection/KPGrouping)> \
-    --cache_path <path_to_model_to_be_tested> \
-    --data_dir <path_to_data> \
-    --iter <model_iteration>
-```
+To test the extraction of data directly, use the `val_extraction.py` script:
 
 e.g.
 
 ```shell
 python val_extraction.py \
-    --img_path "data/extraction_data/images/val" \
     --save_path evaluation \
     --model_type KPGrouping \
-    --cache_path "data/cache/" \
-    --data_dir "data/extraction_data" \
-    --iter 15000
+    --cache_path "/root/autodl-tmp/cache/" \
+    --data_dir "/root/autodl-tmp/component_data" \
+    --trained_model_iter "best"
 ```
 
-## Todo
+## Acknowledgments
 
-End to end training
+I am deeply grateful to:
+- **Dr. Zhi-Qi Cheng** from Carnegie Mellon University. His expertise and insights were invaluable in shaping my research. 
+- **The Center for High-Performance Computing at Shanghai Jiao Tong University**, which provided the computational resources for this paper. 
+- **The S.T. Yau Science Award** for providing me with an incredible opportunity and platform to showcase my research. 

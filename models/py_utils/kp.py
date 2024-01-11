@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-import logging
 from .utils import convolution, residual
 from .utils import make_layer, make_layer_revr
-from .kp_utils import _transpose_and_gather_feat, _decode_pure, _decode_group
+from .kp_utils import _transpose_and_gather_feat, _decode_detection, _decode_group
 from .kp_utils import _sigmoid, _regr_loss, _neg_loss
 from .kp_utils import make_kp_layer
 from .kp_utils import make_pool_layer, make_unpool_layer
@@ -43,7 +42,7 @@ class kp_module(nn.Module):
             layer=layer, **kwargs
         )  
 # self.max1: 最大池化层，用于下采样。
-        self.max1 = make_pool_layer(curr_dim)
+        self.max1 = make_pool_layer()
 # self.low1: 下方层，用于处理下采样后的特征。
         self.low1 = make_hg_layer(
             3, curr_dim, next_dim, curr_mod,
@@ -73,7 +72,7 @@ class kp_module(nn.Module):
 # self.up2: 上采样层，用于恢复特征映射的尺寸。
         self.up2  = make_unpool_layer(curr_dim)
 # self.merge: 合并层，用于融合不同路径的特征。
-        self.merge = make_merge_layer(curr_dim)
+        self.merge = make_merge_layer()
     # forward 方法是在定义自定义 nn.Module 子类时需要重写（override）的方法之一。这个方法定义了如何对输入数据进行操作以得到输出。当你调用一个 nn.Module 对象时（就像函数一样），实际上是调用了它的 forward 方法。
     def forward(self, x):
         # 输入通过上采样层self.up1，将特征映射的尺寸增加。这有助于捕获更精细的空间信息。
@@ -103,9 +102,9 @@ class kp_detection(nn.Module):
         kp_layer=residual
     ):
         super(kp_detection, self).__init__()
-        logging.info('KP pretrain enabled.')
+        print('Keypoint detection enabled.')
         self.nstack    = nstack
-        self._decode   = _decode_pure
+        self._decode   = _decode_detection
         curr_dim = dims[0]
 # 定义了一个简单的前处理（preprocessing）或初级特征提取（initial feature extraction）部分。这一部分通常用于在更深层次的特征提取和任务特定操作之前对输入图像进行初步处理。让我们逐一解析这些层的作用：
 # convolution(7, 3, 128, stride=2): 这是一个卷积层，卷积核尺寸为7x7，输入通道数为3（假设是RGB图像），输出通道数为128。步长（stride）为2，这意味着这个层会降低图像的尺寸。
@@ -138,7 +137,7 @@ class kp_detection(nn.Module):
             make_cnv_layer(cnv_dim, cnv_dim) for _ in range(nstack)
         ])
 
-        ## keypoint heatmaps
+        # keypoint heatmaps
         self.key_heats = nn.ModuleList([
             make_heat_layer(cnv_dim, curr_dim, out_dim) for _ in range(nstack)
         ])
@@ -147,6 +146,7 @@ class kp_detection(nn.Module):
         ])
 
         for key_heat, center_heat in zip(self.key_heats, self.center_heats):
+            # 选取 key_heat 列表中的最后一个元素（假设为一个网络层），并将该层的偏置参数全部设置为 -2.19。
             key_heat[-1].bias.data.fill_(-2.19)
             center_heat[-1].bias.data.fill_(-2.19)
 
@@ -160,6 +160,7 @@ class kp_detection(nn.Module):
                 nn.BatchNorm2d(curr_dim)
             ) for _ in range(nstack - 1)
         ])
+
         self.cnvs_   = nn.ModuleList([
             nn.Sequential(
                 nn.Conv2d(cnv_dim, curr_dim, (1, 1), bias=False),
@@ -212,10 +213,7 @@ class kp_detection(nn.Module):
             key_heat, center_heat = key_heat_(key_cnv), center_heat_(center_cnv)
             # 计算关键点和中心点的回归。
             key_regr, center_regr = key_regr_(key_cnv), center_regr_(center_cnv)
-            #print(f"Before _transpose_and_gather_feat, key_regr shape: {key_regr.shape}")
-            #print(f"Key inds: Min = {key_inds.min()}, Max = {key_inds.max()}")
             key_regr = _transpose_and_gather_feat(key_regr, key_inds)
-            #print(f"After _transpose_and_gather_feat, key_regr shape: {key_regr.shape}")
             center_regr = _transpose_and_gather_feat(center_regr, center_inds)
 
             outs += [key_heat, center_heat, key_regr, center_regr]
@@ -281,7 +279,7 @@ class kp_group(nn.Module):
         kp_layer=residual
     ):
         super(kp_group, self).__init__()
-        logging.info("KP group enabled.")
+        print("Keypoint grouping enabled.")
         self.nstack    = nstack
         self._decode   = _decode_group
         curr_dim = dims[0]
@@ -314,7 +312,7 @@ class kp_group(nn.Module):
             make_cnv_layer(cnv_dim, cnv_dim) for _ in range(nstack)
         ])
 
-        ## keypoint heatmaps
+        # keypoint heatmaps
         self.key_heats = nn.ModuleList([
             make_heat_layer(cnv_dim, curr_dim, out_dim) for _ in range(nstack)
         ])
@@ -360,7 +358,6 @@ class kp_group(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(64, 2)
         )
-
 
     def _train(self, *xs):
         # 从输入元组 xs 中提取训练所需的参数，包括图像、关键点索引、中心索引、关键点长度和中心长度。
@@ -487,12 +484,12 @@ class kp_group(nn.Module):
         
         cen_emb = center_feat[b_ind][:cen_len, :]
         tmp_inds= center_inds[b_ind][:cen_len].float()
-        cen_pos = torch.stack([(tmp_inds % width) / width , (tmp_inds // width) / height]).transpose(0,1) # todo: add regrs
+        cen_pos = torch.stack([(tmp_inds % width) / width , (tmp_inds // width) / height]).transpose(0,1)
         cen_type = torch.ones((cen_pos.size(0),1)).float().cuda()
-        cen_emb = torch.cat((cen_emb, cen_pos, cen_type), 1) # cen_len (batch_len) * featdim
+        cen_emb = torch.cat((cen_emb, cen_pos, cen_type), 1) 
         cen_type2 = torch.eye(cen_emb.size(0)).unsqueeze(-1).cuda()
         cen_emb = cen_emb.unsqueeze(1).repeat(1,cen_emb.size(0),1)
-        cen_emb = torch.cat((cen_emb, cen_type2), -1) # cen_len * cen_len * featdim
+        cen_emb = torch.cat((cen_emb, cen_type2), -1) 
         
         key_emb = key_feat[b_ind][:key_len, :]
         tmp_inds = key_inds[b_ind][:key_len].float()
@@ -500,7 +497,7 @@ class kp_group(nn.Module):
         key_type = torch.zeros((key_pos.size(0),2)).float().cuda()
         key_pos = torch.cat((key_pos, key_type), 1)
         key_emb = torch.cat((key_emb, key_pos), 1)
-        key_emb = key_emb.unsqueeze(1).repeat(1, cen_emb.size(1), 1) # key_len * cen_len (batch_len) * featdim
+        key_emb = key_emb.unsqueeze(1).repeat(1, cen_emb.size(1), 1) 
 
         src = torch.cat((cen_emb, key_emb), 0)
         out = self.transformer_encoder(src).transpose(1,0)
@@ -514,13 +511,6 @@ class kp_group(nn.Module):
         if len(xs) > 1:
             return self._train(*xs, **kwargs)
         return self._test(*xs, **kwargs)
-
-#def get_shape(lst):
-    #shape = []
-    #while type(lst) is list:
-        #shape.append(len(lst))
-        #lst = lst[0]
-    #return tuple(shape)
 
 class DetectionLoss(nn.Module):
     def __init__(self, lambda_, lambda_b, regr_weight=1, focal_loss=_neg_loss):
@@ -632,7 +622,7 @@ class GroupingLoss(nn.Module):
         for b_ind in range(len(group_targets_trim)):
             group_loss += self.group_loss(group_preds[b_ind], group_targets_trim[b_ind])
         group_loss = 10 * group_loss # lr = 0.000025
-        # logging.info('focal_loss:', focal_loss.item(), 'regr_loss:', regr_loss.item(), 'group_loss:', group_loss.item())
+        # print('focal_loss:', focal_loss.item(), 'regr_loss:', regr_loss.item(), 'group_loss:', group_loss.item())
         # 计算了总损失，将前面计算的三个损失组合在一起，并返回。
         if group_loss == 0:
             loss = (focal_loss + regr_loss) / len(key_heats)
