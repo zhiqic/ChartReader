@@ -1,4 +1,4 @@
-# ChartLLM: Unlocking the Multimodal Potential of LLMs for Chart Comprehension
+# ChartReader: A Unified Framework for Chart Derendering and Comprehension without Heuristic Rules
 
 ## Highlights
 
@@ -10,7 +10,7 @@ Our solution first uses a specialized detection module built on Multi-Scale [Hou
 
 ![Example Interface](./example_interface.png)
 
-A simple UI interface is also available for demostrating our model, please visit :
+A simple UI interface is also available for demonstrating our model, please visit :
 
 ## Quickstart
 
@@ -31,7 +31,7 @@ conda activate ChartLLM
 ```
 
 
-The Microsoft COCO APIs are required for the functioning of data loading part of the chart data extraction part, given that the original EC400K dataset is in COCO format.
+The Microsoft COCO APIs are required for the functioning of the data loading part of the chart data extraction part, given that the original EC400K dataset is in COCO format.
 
 ```shell
 mkdir data
@@ -46,7 +46,7 @@ make
 Download the modified EC400K dataset from this [link](https://pan.baidu.com/s/1myO8-SAmLa5NVsHzmBSC5w?pwd=54tb)
 
 > The annotation contains three parts. 
-> The first part `images` containes the chart image information, which has 4 labels for each image: `file_name`, `width`, `height`, and `id`. 
+> The first part `images` contains the chart image information, which has 4 labels for each image: `file_name`, `width`, `height`, and `id`. 
 > The second part `annotations` contains the chart components annotation information, which has 5 labels for each annotation: `image_id`, `category_id`,   `bbox`, `area`, `id`.
 > - `image_id`: the `id` of chart image which the annotation belongs to
 > - `category_id`: the type of the component, where 1 denotes bars in vbar_categorical charts, 2 denotes lines in line charts, 3 denotes pies in pie charts, 4 denotes the legends, 5 denotes the title of the values axes, 6 denotes the title of the entire chart, 7 denotes the title of the category axes.
