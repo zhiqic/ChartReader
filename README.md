@@ -6,11 +6,7 @@
 - 🎊 Transformer architecture automatically infers rules from center/key points
 - 🏵️ Unified framework for all chart and table understanding tasks
 
-Our solution first uses a specialized detection module built on Multi-Scale [Hourglass Networks](https://arxiv.org/abs/1603.06937) to locate and segment chart components like axes, legends and plot areas in a unified manner without hardcoded assumptions. We then employ a structured Transformer encoder to capture spatial, semantic and stylistic relationships between the detected components. This allows grouping relevant elements into a structured tabular intermediate representation of the chart layout and content. Finally, we fine-tune the state-of-the-art [T5](https://arxiv.org/abs/1910.10683) text-to-text transformer on this representation using special tokens to associate chart details with free-form questions across a variety of analytical tasks.
-
-![Example Interface](./example_interface.png)
-
-A simple UI interface is also available for demonstrating our model, please visit :
+Our solution first uses a specialized detection module built on Multi-Scale [Hourglass Networks](https://arxiv.org/abs/1603.06937) to locate and segment chart components like axes, legends, and plot areas in a unified manner without hardcoded assumptions. We then employ a structured Transformer encoder to capture spatial, semantic, and stylistic relationships between the detected components. This allows grouping relevant elements into a structured tabular intermediate representation of the chart layout and content. Finally, we fine-tune the state-of-the-art [T5](https://arxiv.org/abs/1910.10683) text-to-text transformer on this representation using special tokens to associate chart details with free-form questions across a variety of analytical tasks.
 
 ## Quickstart
 
@@ -30,7 +26,6 @@ conda env create -f requirements.yaml
 conda activate ChartLLM
 ```
 
-
 The Microsoft COCO APIs are required for the functioning of the data loading part of the chart data extraction part, given that the original EC400K dataset is in COCO format.
 
 ```shell
@@ -47,7 +42,7 @@ Download the modified EC400K dataset from this [link](https://pan.baidu.com/s/1m
 
 > The annotation contains three parts. 
 > The first part `images` contains the chart image information, which has 4 labels for each image: `file_name`, `width`, `height`, and `id`. 
-> The second part `annotations` contains the chart components annotation information, which has 5 labels for each annotation: `image_id`, `category_id`,   `bbox`, `area`, `id`.
+> The second part `annotations` contains the chart components annotation information, which has 5 labels for each annotation: `image_id`, `category_id`, `bbox`, `area`, and `id`.
 > - `image_id`: the `id` of chart image which the annotation belongs to
 > - `category_id`: the type of the component, where 1 denotes bars in vbar_categorical charts, 2 denotes lines in line charts, 3 denotes pies in pie charts, 4 denotes the legends, 5 denotes the title of the values axes, 6 denotes the title of the entire chart, 7 denotes the title of the category axes.
 > - `bbox`: the points showing the bounding box of the component. For lines in line charts, they are the data points for a line (`[d_1_x, d_1_y, …., d_n_x, d_n_y]`). For pies in pie charts, they are the three critical points for a sector of the pie `[center_x, center_y, edge_1_x, edge_1_y, edge_2_x, edge_2_y]`. For bars in vbar_categorical charts, and other types of components, they are the x-coordinate of the top-left corner of the box, the y-coordinate of the top-left corner of the box, the width of the box (horizontal dimension), and the height of the box (vertical dimension).
@@ -131,7 +126,22 @@ python val_extraction.py \
 
 ## Acknowledgments
 
-I am deeply grateful to:
-- **Dr. Zhi-Qi Cheng** from Carnegie Mellon University. His expertise and insights were invaluable in shaping my research. 
-- **The Center for High-Performance Computing at Shanghai Jiao Tong University**, which provided the computational resources for this paper. 
-- **The S.T. Yau Science Award** for providing me with an incredible opportunity and platform to showcase my research. 
+This work received support from the Air Force Research Laboratory under agreement number FA8750-192-0200; the Defense Advanced Research Projects Agency (DARPA) grants funded through the GAILA program (award HR00111990063); and the Defense Advanced Research Projects Agency (DARPA) grants funded through the AIDA program (FA8750-18-20018).
+
+## Citation
+
+If you use this code, please cite the following paper:
+
+```plaintext
+@inproceedings{cheng2023chartreader,
+  title={Chartreader: A unified framework for chart derendering and comprehension without heuristic rules},
+  author={Cheng, Zhi-Qi and Dai, Qi and Li, Siyao and Sun, Jingdong and Mitamura, Teruko and Hauptmann, Alexander G.},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  pages={22202--22213},
+  year={2023}
+}
+```
+
+## License
+
+This project is licensed under the terms of the MIT license. It is intended for academic use only.
